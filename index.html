@@ -10,8 +10,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="TODOAPP">
   
-  <!-- Tailwind CSS via CDN -->
+  <!-- Tailwind CSS & Supabase JS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col justify-between pt-12 pb-6 px-4 select-none">
 
@@ -19,7 +20,7 @@
     <!-- En-tête -->
     <header class="mb-6 flex justify-between items-center">
       <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">TODOAPP</h1>
-      <span id="counter" class="text-xs font-semibold uppercase tracking-wider bg-slate-200 text-slate-600 py-1 px-3 rounded-full">0 tâche</span>
+      <span id="counter" class="text-xs font-semibold uppercase tracking-wider bg-slate-200 text-slate-600 py-1 px-3 rounded-full">Chargement...</span>
     </header>
 
     <!-- Champ de saisie -->
@@ -44,28 +45,55 @@
   </div>
 
   <script>
+    // Configuration Supabase
+    const SUPABASE_URL = "https://bwirwhcetlfwzqswbfwr.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_6f1T8ttm3Lc0yTSqsHUikA_XW5eo3X7";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
     const form = document.getElementById('todo-form');
     const input = document.getElementById('todo-input');
     const list = document.getElementById('todo-list');
     const counter = document.getElementById('counter');
 
-    let todos = JSON.parse(localStorage.getItem('todoapp_tasks')) || [];
+    let todos = [];
 
-    function saveAndRender() {
-      localStorage.setItem('todoapp_tasks', JSON.stringify(todos));
+    // Charger les tâches depuis la base de données
+    async function fetchTodos() {
+      const { data, error } = await supabaseClient
+        .from('todos')
+        .select('*')
+        .order('id', { ascending: false });
+
+      if (error) {
+        console.error("Erreur de chargement :", error);
+        return;
+      }
+
+      todos = data;
       render();
     }
 
-    function toggleTask(id) {
-      todos = todos.map(t => t.id === id ? { ...t, completed: !t.completed } : t);
-      saveAndRender();
+    // Basculer l'état fini / non fini
+    async function toggleTask(id, currentStatus) {
+      const { error } = await supabaseClient
+        .from('todos')
+        .update({ completed: !currentStatus })
+        .eq('id', id);
+
+      if (!error) fetchTodos();
     }
 
-    function deleteTask(id) {
-      todos = todos.filter(t => t.id !== id);
-      saveAndRender();
+    // Supprimer une tâche
+    async function deleteTask(id) {
+      const { error } = await supabaseClient
+        .from('todos')
+        .delete()
+        .eq('id', id);
+
+      if (!error) fetchTodos();
     }
 
+    // Rendu de l'interface
     function render() {
       list.innerHTML = '';
       const activeCount = todos.filter(t => !t.completed).length;
@@ -76,7 +104,7 @@
         li.className = `flex items-center justify-between p-4 bg-white rounded-2xl shadow-sm border border-slate-200/60 transition-all ${todo.completed ? 'opacity-50' : ''}`;
         
         li.innerHTML = `
-          <div class="flex items-center gap-3 flex-1 cursor-pointer" onclick="toggleTask(${todo.id})">
+          <div class="flex items-center gap-3 flex-1 cursor-pointer" onclick="toggleTask(${todo.id}, ${todo.completed})">
             <div class="w-6 h-6 rounded-full border-2 ${todo.completed ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300'} flex items-center justify-center text-white text-xs font-bold">
               ${todo.completed ? '✓' : ''}
             </div>
@@ -88,17 +116,22 @@
       });
     }
 
-    form.addEventListener('submit', (e) => {
+    // Ajouter une tâche
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const text = input.value.trim();
       if (!text) return;
-      
-      todos.unshift({ id: Date.now(), text, completed: false });
+
       input.value = '';
-      saveAndRender();
+      const { error } = await supabaseClient
+        .from('todos')
+        .insert([{ text: text, completed: false }]);
+
+      if (!error) fetchTodos();
     });
 
-    render();
+    // Chargement initial
+    fetchTodos();
   </script>
 </body>
 </html>
