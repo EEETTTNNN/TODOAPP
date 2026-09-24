@@ -1,140 +1,488 @@
-<!-- TODOAPP - Version 1.0.0 -->
+<!-- TODOAPP - Version 1.0.1 -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>TODOAPP - v1.0.0</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
+  <title>TODOAPP - v1.0.1</title>
   
-  <!-- Configuration PWA iOS -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="TODOAPP">
   
-  <!-- Tailwind CSS & Supabase JS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    /* Permet le dézoome tactile fluide */
+    html, body { touch-action: manipulation; }
+    .progress-red { background-color: #ef4444; color: #ef4444; }
+    .progress-orange { background-color: #f97316; color: #f97316; }
+    .progress-yellow { background-color: #eab308; color: #eab308; }
+    .progress-green { background-color: #22c55e; color: #22c55e; }
+  </style>
 </head>
-<body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col justify-between pt-12 pb-6 px-4 select-none">
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col justify-between pt-6 pb-12 px-4 select-none">
 
-  <div class="max-w-md mx-auto w-full">
+  <div id="app-container" class="max-w-xl mx-auto w-full transition-transform origin-top">
+    
     <!-- En-tête -->
-    <header class="mb-6 flex justify-between items-center">
+    <header class="mb-4 flex justify-between items-center">
       <div class="flex items-baseline gap-2">
         <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">TODOAPP</h1>
-        <span class="text-xs font-mono font-medium text-slate-400">v1.0.0</span>
+        <span class="text-xs font-mono font-medium text-slate-400">v1.0.1</span>
       </div>
-      <span id="counter" class="text-xs font-semibold uppercase tracking-wider bg-slate-200 text-slate-600 py-1 px-3 rounded-full">Chargement...</span>
+      
+      <!-- Recherche par Loupe -->
+      <div class="relative flex items-center">
+        <button id="search-btn" onclick="toggleSearch()" class="p-2 bg-white rounded-xl shadow-sm border border-slate-200 text-slate-600">🔍</button>
+        <input id="search-input" type="text" placeholder="Tags ex: #salon #pierre..." oninput="render()" class="hidden absolute right-0 top-0 w-64 bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm shadow-md focus:outline-none z-10">
+      </div>
     </header>
 
-    <!-- Champ de saisie -->
+    <!-- Progression Globale -->
+    <section class="mb-5 bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80">
+      <div class="flex justify-between items-center mb-1 text-sm font-semibold text-slate-700">
+        <span>Avancement global</span>
+        <span id="global-pct-text" class="font-bold">0%</span>
+      </div>
+      <div class="w-full bg-slate-100 h-2,5 rounded-full overflow-hidden">
+        <div id="global-bar" class="h-2.5 transition-all duration-300 w-0 progress-red"></div>
+      </div>
+    </section>
+
+    <!-- Onglets de Catégories -->
+    <nav class="mb-4 flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none" id="category-tabs">
+      <!-- Les onglets seront générés dynamiquement -->
+    </nav>
+
+    <!-- Tri & Options de vue -->
+    <div class="flex justify-between items-center mb-4 text-xs font-medium text-slate-500 bg-slate-200/60 p-2 rounded-xl">
+      <div class="flex gap-2 items-center">
+        <span>Trier par :</span>
+        <select id="sort-select" onchange="render()" class="bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs focus:outline-none">
+          <option value="date-desc">Plus récents</option>
+          <option value="date-asc">Plus anciens</option>
+          <option value="priority">Priorité (1 -> 4)</option>
+        </select>
+      </div>
+      <button onclick="togglePausedTab()" id="paused-toggle-btn" class="text-slate-600 underline">En attente (0)</button>
+    </div>
+
+    <!-- Champ d'ajout -->
     <form id="todo-form" class="flex gap-2 mb-6">
       <input 
         type="text" 
         id="todo-input" 
-        placeholder="Ajouter une tâche..." 
+        placeholder="Ajouter une tâche... ($tâche pour lier)" 
         required
         class="flex-1 bg-white border border-slate-300 rounded-2xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-slate-900 shadow-sm"
       >
-      <button 
-        type="submit" 
-        class="bg-slate-900 text-white font-medium px-5 py-3 rounded-2xl active:scale-95 transition-transform shadow-sm"
-      >
-        +
-      </button>
+      <button type="submit" class="bg-slate-900 text-white font-medium px-5 py-3 rounded-2xl active:scale-95 transition-transform shadow-sm">+</button>
     </form>
 
     <!-- Liste des tâches -->
     <ul id="todo-list" class="space-y-3"></ul>
   </div>
 
+  <!-- POPUP EDITION DE TÂCHE -->
+  <div id="edit-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center p-4 z-50" onclick="closeModalOnOut(event)">
+    <div class="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-100 space-y-4" onclick="event.stopPropagation()">
+      <div class="flex justify-between items-center border-b pb-3">
+        <h3 class="font-bold text-lg text-slate-800">Personnaliser la tâche</h3>
+        <button onclick="closeModal()" class="text-slate-400 text-xl font-bold">&times;</button>
+      </div>
+
+      <input type="hidden" id="modal-task-id">
+
+      <!-- Catégorie -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Catégorie</label>
+        <input type="text" id="modal-category" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none">
+      </div>
+
+      <!-- Priorité -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Niveau de priorité</label>
+        <select id="modal-priority" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none">
+          <option value="1">Priorité 1 (Basse)</option>
+          <option value="2">Priorité 2 (Moyenne)</option>
+          <option value="3">Priorité 3 (Haute)</option>
+          <option value="4">Priorité 4 (Urgente)</option>
+        </select>
+      </div>
+
+      <!-- Tags -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Tags (séparés par une virgule)</label>
+        <input type="text" id="modal-tags" placeholder="maison, urgence, beau temps" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none">
+      </div>
+
+      <!-- Mise en pause -->
+      <div class="flex items-center justify-between pt-2">
+        <span class="text-sm font-medium text-slate-700">Mettre sur pause</span>
+        <input type="checkbox" id="modal-paused" class="w-5 h-5 accent-slate-900 rounded">
+      </div>
+
+      <!-- Sous-tâches -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-500 uppercase mb-2">Sous-tâches</label>
+        <div id="modal-subtasks-list" class="space-y-2 mb-2 max-h-36 overflow-y-auto"></div>
+        <div class="flex gap-2">
+          <input type="text" id="new-subtask-input" placeholder="Nouvelle sous-tâche..." class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-sm">
+          <button onclick="addModalSubtask()" class="bg-slate-800 text-white px-3 py-1.5 rounded-xl text-sm">+</button>
+        </div>
+      </div>
+
+      <div class="flex gap-2 pt-4">
+        <button onclick="saveModalChanges()" class="flex-1 bg-slate-900 text-white font-medium py-2.5 rounded-xl text-sm">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
   <script>
-    // Configuration Supabase
     const SUPABASE_URL = "https://bwirwhcetlfwzqswbfwr.supabase.co";
     const SUPABASE_KEY = "sb_publishable_6f1T8ttm3Lc0yTSqsHUikA_XW5eo3X7";
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const form = document.getElementById('todo-form');
-    const input = document.getElementById('todo-input');
-    const list = document.getElementById('todo-list');
-    const counter = document.getElementById('counter');
-
     let todos = [];
+    let currentCategory = 'Tous';
+    let categoriesList = ['Tous', 'Général', 'Travail', 'Maison', 'Voiture'];
+    let showPausedTab = false;
+    let draggedIndex = null;
 
-    // Charger les tâches depuis la base de données
+    // Charger les données
     async function fetchTodos() {
-      const { data, error } = await supabaseClient
-        .from('todos')
-        .select('*')
-        .order('id', { ascending: false });
-
-      if (error) {
-        console.error("Erreur de chargement :", error);
-        return;
+      const { data, error } = await supabaseClient.from('todos').select('*');
+      if (!error && data) {
+        todos = data;
+        updateCategoriesFromData();
+        render();
       }
-
-      todos = data;
-      render();
     }
 
-    // Basculer l'état fini / non fini
-    async function toggleTask(id, currentStatus) {
-      const { error } = await supabaseClient
-        .from('todos')
-        .update({ completed: !currentStatus })
-        .eq('id', id);
-
-      if (!error) fetchTodos();
-    }
-
-    // Supprimer une tâche
-    async function deleteTask(id) {
-      const { error } = await supabaseClient
-        .from('todos')
-        .delete()
-        .eq('id', id);
-
-      if (!error) fetchTodos();
-    }
-
-    // Rendu de l'interface
-    function render() {
-      list.innerHTML = '';
-      const activeCount = todos.filter(t => !t.completed).length;
-      counter.textContent = `${activeCount} restante${activeCount > 1 ? 's' : ''}`;
-
-      todos.forEach(todo => {
-        const li = document.createElement('li');
-        li.className = `flex items-center justify-between p-4 bg-white rounded-2xl shadow-sm border border-slate-200/60 transition-all ${todo.completed ? 'opacity-50' : ''}`;
-        
-        li.innerHTML = `
-          <div class="flex items-center gap-3 flex-1 cursor-pointer" onclick="toggleTask(${todo.id}, ${todo.completed})">
-            <div class="w-6 h-6 rounded-full border-2 ${todo.completed ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300'} flex items-center justify-center text-white text-xs font-bold">
-              ${todo.completed ? '✓' : ''}
-            </div>
-            <span class="text-base ${todo.completed ? 'line-through text-slate-400' : 'text-slate-700 font-medium'}">${todo.text}</span>
-          </div>
-          <button onclick="deleteTask(${todo.id})" class="text-slate-300 hover:text-rose-500 p-1 text-lg leading-none">&times;</button>
-        `;
-        list.appendChild(li);
+    function updateCategoriesFromData() {
+      todos.forEach(t => {
+        if (t.category && !categoriesList.includes(t.category)) {
+          categoriesList.push(t.category);
+        }
       });
     }
 
-    // Ajouter une tâche
-    form.addEventListener('submit', async (e) => {
+    // Calcul de la couleur/pourcentage
+    function getProgressInfo(subtasks) {
+      if (!subtasks || subtasks.length === 0) return { pct: 0, colorClass: 'progress-red', hex: '#ef4444' };
+      const done = subtasks.filter(s => s.completed).length;
+      const pct = Math.round((done / subtasks.length) * 100);
+      
+      let colorClass = 'progress-red';
+      let hex = '#ef4444';
+      if (pct >= 100) { colorClass = 'progress-green'; hex = '#22c55e'; }
+      else if (pct >= 66) { colorClass = 'progress-yellow'; hex = '#eab308'; }
+      else if (pct >= 33) { colorClass = 'progress-orange'; hex = '#f97316'; }
+
+      return { pct, colorClass, hex };
+    }
+
+    // Transformation des hyperliens ($tâche ou http)
+    function parseHyperlinks(text) {
+      return text.replace(/\$([a-zA-Z0-9_àéèêàâôûùç-]+)/g, (match, targetName) => {
+        const target = todos.find(t => t.text.toLowerCase().includes(targetName.toLowerCase()));
+        if (target) {
+          const info = getProgressInfo(target.subtasks);
+          return `<span style="color: ${info.hex}" class="font-bold underline cursor-pointer" onclick="event.stopPropagation(); scrollToTask(${target.id})">${match}</span>`;
+        }
+        return `<span class="text-indigo-600 underline">${match}</span>`;
+      }).replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="text-blue-500 underline">$1</a>');
+    }
+
+    function scrollToTask(id) {
+      const el = document.getElementById(`task-${id}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    // Génération du Rendu principal
+    function render() {
+      renderCategories();
+      const listEl = document.getElementById('todo-list');
+      listEl.innerHTML = '';
+
+      const searchQuery = document.getElementById('search-input').value.toLowerCase().trim();
+      const sortVal = document.getElementById('sort-select').value;
+
+      // Filtrage
+      let filtered = todos.filter(t => {
+        if (showPausedTab) return t.paused;
+        if (t.paused) return false;
+        
+        const catMatch = (currentCategory === 'Tous') || (t.category === currentCategory);
+        
+        let tagMatch = true;
+        if (searchQuery) {
+          const tagsStr = (t.tags || []).join(' ').toLowerCase();
+          const textStr = t.text.toLowerCase();
+          tagMatch = searchQuery.split(' ').every(q => tagsStr.includes(q) || textStr.includes(q));
+        }
+
+        return catMatch && tagMatch;
+      });
+
+      // Tri
+      filtered.sort((a, b) => {
+        if (sortVal === 'priority') {
+          if (b.priority !== a.priority) return b.priority - a.priority;
+          return b.id - a.id;
+        }
+        return sortVal === 'date-asc' ? a.id - b.id : b.id - a.id;
+      });
+
+      // Rendu de chaque tâche
+      filtered.forEach((todo, idx) => {
+        const info = getProgressInfo(todo.subtasks);
+        const li = document.createElement('li');
+        li.id = `task-${todo.id}`;
+        li.draggable = true;
+        li.ondragstart = () => draggedIndex = idx;
+        li.ondragover = (e) => e.preventDefault();
+        li.ondrop = () => handleDrop(idx, filtered);
+
+        li.className = `bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80 transition-all ${todo.completed ? 'opacity-60' : ''}`;
+
+        li.innerHTML = `
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex items-center gap-3 flex-1 cursor-pointer" onclick="toggleTask(${todo.id}, ${todo.completed})">
+              <div class="w-6 h-6 rounded-full border-2 ${todo.completed ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300'} flex items-center justify-center text-white text-xs font-bold mt-0.5">
+                ${todo.completed ? '✓' : ''}
+              </div>
+              <div>
+                <div class="text-base font-medium ${todo.completed ? 'line-through text-slate-400' : 'text-slate-800'}">
+                  ${parseHyperlinks(todo.text)}
+                </div>
+                <div class="flex flex-wrap gap-1 mt-1">
+                  <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">P${todo.priority || 1}</span>
+                  ${(todo.tags || []).map(tag => `<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">#${tag}</span>`).join('')}
+                </div>
+              </div>
+            </div>
+            
+            <button onclick="openModal(${todo.id})" class="text-slate-400 hover:text-slate-700 text-xl px-2 font-bold">⋮</button>
+          </div>
+
+          <!-- Barre de progression sous-tâches -->
+          ${todo.subtasks && todo.subtasks.length > 0 ? `
+            <div class="mt-3 pt-2 border-t border-slate-100">
+              <div class="flex justify-between items-center text-xs font-semibold mb-1" style="color: ${info.hex}">
+                <span>Avancement</span>
+                <span>${info.pct}%</span>
+              </div>
+              <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                <div class="h-1.5 transition-all duration-300 ${info.colorClass}" style="width: ${info.pct}%"></div>
+              </div>
+            </div>
+          ` : ''}
+        `;
+        listEl.appendChild(li);
+      });
+
+      updateGlobalProgress();
+    }
+
+    // Gestion des Onglets
+    function renderCategories() {
+      const nav = document.getElementById('category-tabs');
+      nav.innerHTML = '';
+      
+      categoriesList.forEach(cat => {
+        const btn = document.createElement('button');
+        btn.className = `px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${!showPausedTab && currentCategory === cat ? 'bg-slate-900 text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200'}`;
+        btn.textContent = cat;
+        btn.onclick = () => { showPausedTab = false; currentCategory = cat; render(); };
+        nav.appendChild(btn);
+      });
+
+      // Bouton ajout catégorie
+      const addBtn = document.createElement('button');
+      addBtn.className = 'px-3 py-2 rounded-xl text-xs font-bold bg-slate-200 text-slate-700';
+      addBtn.textContent = '+';
+      addBtn.onclick = () => {
+        const name = prompt('Nom de la nouvelle catégorie :');
+        if (name && !categoriesList.includes(name)) {
+          categoriesList.push(name);
+          currentCategory = name;
+          render();
+        }
+      };
+      nav.appendChild(addBtn);
+    }
+
+    // Progression globale
+    function updateGlobalProgress() {
+      const activeTodos = todos.filter(t => !t.paused);
+      const pausedCount = todos.filter(t => t.paused).length;
+      document.getElementById('paused-toggle-btn').textContent = `En attente (${pausedCount})`;
+
+      if (activeTodos.length === 0) {
+        document.getElementById('global-pct-text').textContent = '0%';
+        document.getElementById('global-bar').style.width = '0%';
+        return;
+      }
+
+      let totalPct = 0;
+      activeTodos.forEach(t => {
+        if (t.subtasks && t.subtasks.length > 0) {
+          totalPct += getProgressInfo(t.subtasks).pct;
+        } else {
+          totalPct += t.completed ? 100 : 0;
+        }
+      });
+
+      const globalPct = Math.round(totalPct / activeTodos.length);
+      const info = getProgressInfo([{ completed: true }]); // Helper pour couleur
+      
+      const bar = document.getElementById('global-bar');
+      const text = document.getElementById('global-pct-text');
+      
+      text.textContent = `${globalPct}%`;
+      text.style.color = getProgressInfo(Array(100).fill(0).map((_, i) => ({ completed: i < globalPct }))).hex;
+      bar.style.width = `${globalPct}%`;
+      bar.className = `h-2.5 transition-all duration-300 ${getProgressInfo(Array(100).fill(0).map((_, i) => ({ completed: i < globalPct }))).colorClass}`;
+    }
+
+    // Modale de Personnalisation
+    function openModal(id) {
+      const todo = todos.find(t => t.id === id);
+      if (!todo) return;
+
+      document.getElementById('modal-task-id').value = todo.id;
+      document.getElementById('modal-category').value = todo.category || 'Général';
+      document.getElementById('modal-priority').value = todo.priority || 1;
+      document.getElementById('modal-tags').value = (todo.tags || []).join(', ');
+      document.getElementById('modal-paused').checked = !!todo.paused;
+
+      renderModalSubtasks(todo.subtasks || []);
+      document.getElementById('edit-modal').classList.remove('hidden');
+      document.getElementById('edit-modal').classList.add('flex');
+    }
+
+    function closeModal() {
+      document.getElementById('edit-modal').classList.add('hidden');
+      document.getElementById('edit-modal').classList.remove('flex');
+    }
+
+    function closeModalOnOut(e) {
+      if (e.target.id === 'edit-modal') closeModal();
+    }
+
+    function renderModalSubtasks(subtasks) {
+      const container = document.getElementById('modal-subtasks-list');
+      container.innerHTML = '';
+      subtasks.forEach((st, i) => {
+        const div = document.createElement('div');
+        div.className = 'flex items-center justify-between bg-slate-50 p-2 rounded-xl border text-sm';
+        div.innerHTML = `
+          <div class="flex items-center gap-2">
+            <input type="checkbox" ${st.completed ? 'checked' : ''} onchange="toggleSubtaskStatus(${i})" class="accent-slate-900">
+            <span class="${st.completed ? 'line-through text-slate-400' : ''}">${st.text}</span>
+          </div>
+          <button onclick="removeSubtask(${i})" class="text-rose-500 font-bold">&times;</button>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    async function saveModalChanges() {
+      const id = parseInt(document.getElementById('modal-task-id').value);
+      const category = document.getElementById('modal-category').value.trim() || 'Général';
+      const priority = parseInt(document.getElementById('modal-priority').value);
+      const tags = document.getElementById('modal-tags').value.split(',').map(s => s.trim()).filter(Boolean);
+      const paused = document.getElementById('modal-paused').checked;
+
+      const todo = todos.find(t => t.id === id);
+
+      const { error } = await supabaseClient.from('todos').update({
+        category, priority, tags, paused, subtasks: todo.subtasks || []
+      }).eq('id', id);
+
+      if (!error) {
+        closeModal();
+        fetchTodos();
+      }
+    }
+
+    async function addModalSubtask() {
+      const id = parseInt(document.getElementById('modal-task-id').value);
+      const input = document.getElementById('new-subtask-input');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const todo = todos.find(t => t.id === id);
+      const subtasks = todo.subtasks || [];
+      subtasks.push({ text, completed: false });
+
+      input.value = '';
+      renderModalSubtasks(subtasks);
+      await supabaseClient.from('todos').update({ subtasks }).eq('id', id);
+      fetchTodos();
+    }
+
+    async function toggleSubtaskStatus(index) {
+      const id = parseInt(document.getElementById('modal-task-id').value);
+      const todo = todos.find(t => t.id === id);
+      todo.subtasks[index].completed = !todo.subtasks[index].completed;
+      
+      renderModalSubtasks(todo.subtasks);
+      await supabaseClient.from('todos').update({ subtasks: todo.subtasks }).eq('id', id);
+      fetchTodos();
+    }
+
+    async function removeSubtask(index) {
+      const id = parseInt(document.getElementById('modal-task-id').value);
+      const todo = todos.find(t => t.id === id);
+      todo.subtasks.splice(index, 1);
+
+      renderModalSubtasks(todo.subtasks);
+      await supabaseClient.from('todos').update({ subtasks: todo.subtasks }).eq('id', id);
+      fetchTodos();
+    }
+
+    // Actions principales
+    document.getElementById('todo-form').addEventListener('submit', async (e) => {
       e.preventDefault();
+      const input = document.getElementById('todo-input');
       const text = input.value.trim();
       if (!text) return;
 
       input.value = '';
-      const { error } = await supabaseClient
-        .from('todos')
-        .insert([{ text: text, completed: false }]);
+      const { error } = await supabaseClient.from('todos').insert([{ 
+        text, completed: false, category: currentCategory === 'Tous' ? 'Général' : currentCategory, priority: 1, subtasks: [] 
+      }]);
 
       if (!error) fetchTodos();
     });
 
-    // Chargement initial
+    async function toggleTask(id, status) {
+      const { error } = await supabaseClient.from('todos').update({ completed: !status }).eq('id', id);
+      if (!error) fetchTodos();
+    }
+
+    function toggleSearch() {
+      const input = document.getElementById('search-input');
+      input.classList.toggle('hidden');
+      if (!input.classList.contains('hidden')) input.focus();
+    }
+
+    function togglePausedTab() {
+      showPausedTab = !showPausedTab;
+      render();
+    }
+
+    // Glisser-déposer
+    function handleDrop(targetIdx, list) {
+      const movedItem = list.splice(draggedIndex, 1)[0];
+      list.splice(targetIdx, 0, movedItem);
+      render();
+    }
+
+    // Initialisation
     fetchTodos();
   </script>
 </body>
