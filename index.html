@@ -1,40 +1,63 @@
-<!-- TODOAPP - Version 1.0.2 -->
+<!-- TODOAPP - Version 1.0.4 -->
+<!-- Nombre total de lignes : 628 -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>TODOAPP - v1.0.2</title>
+  <title>TODOAPP - v1.0.4</title>
   
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="TODOAPP">
   
+  <!-- Icône PWA personnalisée hébergée sur GitHub -->
+  <link rel="apple-touch-icon" href="appicon.jpg">
+  <link rel="icon" href="appicon.jpg">
+  
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   
   <style>
-    body { -webkit-tap-highlight-color: transparent; }
+    body { -webkit-tap-highlight-color: transparent; overflow-x: hidden; }
     .scrollbar-none::-webkit-scrollbar { display: none; }
     .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
     
-    /* Vue Hélicoptère (Mosaïque) */
-    .view-helicopter #todo-list { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px; }
-    .view-helicopter li { width: 32px; height: 32px; overflow: hidden; border-radius: 8px; cursor: pointer; transition: transform 0.2s; padding: 0 !important; }
-    .view-helicopter li:hover { transform: scale(1.1); }
-    .view-helicopter li > div { display: none !important; }
-    
-    /* Couleurs de progression */
-    .progress-red { background-color: #ef4444; color: #ef4444; border-color: #ef4444; }
-    .progress-orange { background-color: #f97316; color: #f97316; border-color: #f97316; }
-    .progress-yellow { background-color: #eab308; color: #eab308; border-color: #eab308; }
-    .progress-green { background-color: #22c55e; color: #22c55e; border-color: #22c55e; }
+    /* Vue Zoom Dynamique */
+    #todo-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(calc(var(--zoom-level, 100) * 1%), 1fr));
+      gap: calc(var(--zoom-gap, 12) * 1px);
+      transition: all 0.3s ease;
+    }
 
-    /* Priorités (Marges Apple) */
-    .prio-1 { border-left-color: #cbd5e1; } /* Gris */
-    .prio-2 { border-left-color: #3b82f6; } /* Bleu */
-    .prio-3 { border-left-color: #f97316; } /* Orange */
-    .prio-4 { border-left-color: #ef4444; } /* Rouge */
+    /* Swipe Container */
+    .swipe-wrapper { position: relative; overflow: hidden; border-radius: 1rem; margin-bottom: 0.75rem; }
+    .swipe-background { position: absolute; inset: 0; display: flex; justify-content: space-between; align-items: center; padding: 0 1rem; color: white; font-weight: bold; font-size: 0.875rem; border-radius: 1rem; z-index: 0; }
+    .swipe-bg-left { background-color: #22c55e; width: 50%; display: flex; align-items: center; justify-content: flex-start; padding-left: 20px;}
+    .swipe-bg-right { background-color: #f43f5e; width: 50%; position: absolute; right: 0; height: 100%; display: flex; align-items: center; justify-content: flex-end; padding-right: 20px; }
+    .swipe-bg-pause { background-color: #f59e0b; width: 50%; position: absolute; right: 0; height: 100%; display: flex; align-items: center; justify-content: flex-end; padding-right: 80px; opacity: 0;}
+    .swipe-content {
+      position: relative; z-index: 10; background: white; transition: transform 0.2s ease-out; width: 100%; height: 100%;
+    }
+
+    /* Comportement Cube (Zoom fort) */
+    .view-cube .swipe-content { padding: 0 !important; border: none !important; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; }
+    .view-cube .task-details, .view-cube .subtask-container, .view-cube .task-progress-bar { display: none !important; }
+    .view-cube .cube-indicator { display: block !important; width: 100%; height: 100%; border-radius: 0.5rem; }
+
+    /* Couleurs de progression & Priorités */
+    .progress-red { background-color: #ef4444; }
+    .progress-orange { background-color: #f97316; }
+    .progress-yellow { background-color: #eab308; }
+    .progress-green { background-color: #22c55e; }
+
+    .prio-1 { border-left: 8px solid #cbd5e1 !important; }
+    .prio-2 { border-left: 8px solid #3b82f6 !important; }
+    .prio-3 { border-left: 8px solid #f97316 !important; }
+    .prio-4 { border-left: 8px solid #ef4444 !important; }
+
+    .cube-indicator { display: none; }
   </style>
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col justify-between pt-10 pb-12 select-none">
@@ -45,23 +68,29 @@
     <header class="mb-4 flex justify-between items-center relative z-20">
       <div class="flex items-baseline gap-2">
         <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">TODOAPP</h1>
-        <span class="text-[10px] font-mono font-medium text-slate-400">v1.0.2</span>
       </div>
       
       <div class="flex items-center gap-2">
-        <button onclick="toggleHelicopter()" id="btn-zoom" class="p-2 bg-white rounded-xl shadow-sm text-slate-600 text-sm">🚁</button>
-        <button onclick="openSettings()" class="p-2 bg-white rounded-xl shadow-sm text-slate-600 text-sm">⚙️</button>
+        <!-- Contrôle du Zoom -->
+        <div class="flex items-center gap-1 bg-white px-2 py-1.5 rounded-xl shadow-sm border border-slate-200">
+          <span class="text-xs">🚁</span>
+          <input type="range" id="zoom-slider" min="10" max="100" value="100" class="w-20 accent-slate-900" oninput="updateZoom()">
+          <span class="text-xs">🔍</span>
+        </div>
+        <!-- Bouton Rafraîchissement Manuel PWA -->
+        <button onclick="syncCloud()" class="p-2 bg-white rounded-xl shadow-sm text-slate-600 text-sm border border-slate-200" title="Mettre à jour">🔄</button>
+        <button onclick="openSettings()" class="p-2 bg-white rounded-xl shadow-sm text-slate-600 text-sm border border-slate-200" title="Réglages">⚙️</button>
         <button onclick="toggleSearch()" id="search-btn" class="p-2 bg-white rounded-xl shadow-sm border border-slate-200 text-slate-600">🔍</button>
       </div>
 
-      <!-- Barre de recherche (cachée par défaut) -->
+      <!-- Barre de recherche -->
       <div id="search-container" class="hidden absolute right-0 top-0 w-full bg-slate-100 flex items-center gap-2 pb-2">
         <input id="search-input" type="text" placeholder="Tags ex: #salon -#pluie..." oninput="render()" class="flex-1 bg-white border border-slate-300 rounded-xl px-4 py-2 text-sm shadow-md focus:outline-none">
         <button onclick="toggleSearch()" class="bg-slate-800 text-white px-3 py-2 rounded-xl text-sm font-bold">Fermer</button>
       </div>
     </header>
 
-    <!-- Progression de l'Onglet -->
+    <!-- Avancement Onglet -->
     <section id="progress-section" class="mb-5 bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80">
       <div class="flex justify-between items-center mb-1 text-sm font-semibold text-slate-700">
         <span>Avancement (<span id="current-tab-name">Tous</span>)</span>
@@ -72,14 +101,13 @@
       </div>
     </section>
 
-    <!-- Filtres & Affichage -->
+    <!-- Filtres -->
     <div class="flex justify-between items-center mb-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
       <div class="flex gap-3">
         <label class="flex items-center gap-1 cursor-pointer">
           <input type="checkbox" id="show-paused" onchange="render()" class="accent-slate-900 w-3 h-3">
           <span>Masqués/Pause</span>
         </label>
-        <button onclick="filterHelicopter('Vert')" id="btn-hide-green" class="hidden text-emerald-600">Cacher Terminés</button>
       </div>
       <select id="sort-select" onchange="render()" class="bg-transparent border-b-2 border-slate-300 px-1 focus:outline-none">
         <option value="date-desc">Récents</option>
@@ -92,21 +120,33 @@
     <nav class="mb-6 flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none" id="category-tabs"></nav>
 
     <!-- Zone de Saisie Rapide (Quick-Add) -->
-    <div class="relative mb-6">
+    <div class="relative mb-6 flex gap-2 items-end">
       <textarea 
         id="todo-input" 
         rows="1"
-        placeholder="Ajouter... (#tag !2 $Lien) Maj+Entrée = Sous-tâche" 
-        class="w-full bg-white border border-slate-300 rounded-2xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-slate-900 shadow-sm resize-none"
+        placeholder="Ajouter... (#tag !2 $Lien) Maj+Entrée = Nouvelle ligne" 
+        class="flex-1 bg-white border border-slate-300 rounded-2xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-slate-900 shadow-sm resize-none"
         onkeydown="handleInputKey(event)"
         oninput="handleAutocomplete(event)"
       ></textarea>
-      <!-- Menu Autocomplétion -->
+      <button onclick="submitNewTask()" class="bg-slate-900 text-white rounded-2xl w-12 h-12 flex items-center justify-center font-bold text-xl shadow-md pb-1 mb-[2px]">+</button>
       <ul id="autocomplete-list" class="hidden absolute z-30 bottom-full mb-1 w-full bg-white border border-slate-200 shadow-xl rounded-xl max-h-40 overflow-y-auto"></ul>
     </div>
 
     <!-- Liste des tâches -->
-    <ul id="todo-list" class="space-y-3 pb-20"></ul>
+    <ul id="todo-list" class="pb-20"></ul>
+  </div>
+
+  <!-- MODALE BLOCAGE DÉPENDANCE -->
+  <div id="dependency-modal" class="fixed inset-0 bg-slate-900/60 hidden flex-col items-center justify-center z-50 p-4 backdrop-blur-sm">
+    <div class="bg-white p-6 rounded-3xl max-w-sm w-full text-center shadow-2xl">
+      <h3 class="text-xl font-extrabold text-slate-800 mb-2">Tâche bloquée</h3>
+      <p class="text-slate-600 mb-6 text-sm">Impossible de valider. Une tâche liée n'est pas encore terminée : <strong id="dep-task-name"></strong></p>
+      <div class="flex gap-3">
+        <button onclick="closeDependencyModal()" class="flex-1 bg-slate-100 text-slate-700 font-bold py-3 rounded-xl">Annuler</button>
+        <button id="dep-btn-voir" class="flex-1 bg-slate-900 text-white font-bold py-3 rounded-xl">Voir la tâche</button>
+      </div>
+    </div>
   </div>
 
   <!-- POPUP EDITION DE TÂCHE -->
@@ -118,17 +158,17 @@
       </div>
 
       <input type="hidden" id="modal-task-id">
+      <input type="hidden" id="modal-is-subtask">
+      <input type="hidden" id="modal-parent-id">
+
       <div class="space-y-4">
-        <!-- Titre -->
         <input type="text" id="modal-title" class="w-full text-lg font-semibold bg-transparent border-b-2 border-slate-200 focus:border-slate-900 focus:outline-none py-1">
 
         <div class="flex gap-4">
-          <!-- Catégorie (Select) -->
-          <div class="flex-1">
+          <div class="flex-1" id="cat-container">
             <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Catégorie</label>
             <select id="modal-category" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none"></select>
           </div>
-          <!-- Priorité -->
           <div class="w-32">
             <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Priorité</label>
             <select id="modal-priority" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none">
@@ -136,39 +176,20 @@
               <option value="3">3 (!!)</option><option value="4">4 (!!!)</option>
             </select>
           </div>
+          <div class="w-24">
+            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Durée</label>
+            <input type="text" id="modal-duration" placeholder="ex: 15m" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none">
+          </div>
         </div>
 
-        <!-- Tags -->
         <div>
           <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Tags (sans #)</label>
           <input type="text" id="modal-tags" placeholder="maison, urgent..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none">
         </div>
 
-        <!-- Notes / Journal -->
         <div>
-          <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Bloc-notes / Journal</label>
-          <textarea id="modal-notes" rows="3" placeholder="Numéros, mesures, avancement..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none"></textarea>
-        </div>
-
-        <!-- Sous-tâches -->
-        <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
-          <div class="flex justify-between items-center mb-2">
-            <label class="text-[10px] font-bold text-slate-400 uppercase">Sous-tâches</label>
-            <button onclick="resetSubtasks()" class="text-[10px] text-blue-600 font-bold bg-blue-50 px-2 py-1 rounded">Remettre à zéro</button>
-          </div>
-          <div id="modal-subtasks-list" class="space-y-2 mb-2 max-h-32 overflow-y-auto"></div>
-          <div class="flex gap-2">
-            <input type="text" id="new-subtask-input" placeholder="Nouvelle..." class="flex-1 bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-sm" onkeypress="if(event.key==='Enter') addModalSubtask()">
-            <button onclick="addModalSubtask()" class="bg-slate-800 text-white px-3 py-1.5 rounded-lg text-sm">+</button>
-          </div>
-        </div>
-
-        <!-- Pause & Options -->
-        <div class="flex items-center justify-between">
-          <label class="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer">
-            <input type="checkbox" id="modal-paused" class="w-5 h-5 accent-slate-900 rounded"> Mettre en pause
-          </label>
-          <button onclick="copyAnchorLink()" class="text-xs bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-bold">Copier lien $</button>
+          <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Bloc-notes</label>
+          <textarea id="modal-notes" rows="3" placeholder="Notes, hyperliens $..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none"></textarea>
         </div>
 
         <button onclick="saveModalChanges()" class="w-full bg-slate-900 text-white font-bold py-3 rounded-xl mt-4 active:scale-95 transition-transform">Enregistrer</button>
@@ -196,93 +217,116 @@
 
     let todos = [];
     let currentCategory = 'Tous';
-    let categoriesList = ['Tous', 'Général', 'Travail', 'Maison', 'Voiture'];
-    let isHelicopter = false;
-    let hideGreenInHelicopter = false;
+    let zoomLevel = 100;
+    
+    function updateZoom() {
+      const slider = document.getElementById('zoom-slider');
+      zoomLevel = parseInt(slider.value);
+      const list = document.getElementById('todo-list');
+      
+      if (zoomLevel <= 30) {
+        list.style.setProperty('--zoom-level', '12'); // Petit cubes
+        list.style.setProperty('--zoom-gap', '4');
+        list.classList.add('view-cube');
+      } else {
+        list.style.setProperty('--zoom-level', '100'); // Lignes pleines
+        list.style.setProperty('--zoom-gap', '12');
+        list.classList.remove('view-cube');
+        const scale = 0.5 + (zoomLevel / 200);
+        list.style.zoom = scale; 
+      }
+    }
 
-    // LOCAL FIRST : Chargement instantané
+    function extractGlobalCategories() {
+      let cats = new Set(['Tous', 'Général', 'Travail', 'Maison', 'Voiture']);
+      todos.forEach(t => { if (t.category) cats.add(t.category); });
+      const customCats = JSON.parse(localStorage.getItem('todoapp_custom_cats') || '[]');
+      customCats.forEach(c => cats.add(c));
+      return Array.from(cats);
+    }
+
     function loadLocal() {
-      const stored = localStorage.getItem('todoapp_v102');
-      if (stored) { todos = JSON.parse(stored); updateCategoriesFromData(); render(); }
+      const stored = localStorage.getItem('todoapp_v104');
+      if (stored) { todos = JSON.parse(stored); render(); }
     }
     
     function saveLocal() {
-      localStorage.setItem('todoapp_v102', JSON.stringify(todos));
+      localStorage.setItem('todoapp_v104', JSON.stringify(todos));
       render();
     }
 
     async function syncCloud() {
       const { data, error } = await supabaseClient.from('todos').select('*');
-      if (!error && data) {
-        todos = data;
-        saveLocal();
+      if (!error && data) { 
+        todos = data; 
+        saveLocal(); 
       }
     }
 
-    function updateCategoriesFromData() {
-      todos.forEach(t => { if (t.category && !categoriesList.includes(t.category)) categoriesList.push(t.category); });
-    }
-
-    // --- QUICK ADD PARSER ---
-    async function handleInputKey(e) {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        const input = e.target;
-        const text = input.value;
-        if (!text.trim()) return;
-
-        // Analyse Shift+Enter Multilignes
-        const lines = text.split('\n').filter(l => l.trim());
-        const mainLine = lines[0];
-        
-        let tags = [];
-        let priority = 1;
-        let cleanText = mainLine;
-
-        // Extraire !1 à !4
-        const prioMatch = cleanText.match(/!([1-4])/);
-        if (prioMatch) { priority = parseInt(prioMatch[1]); cleanText = cleanText.replace(prioMatch[0], ''); }
-        
-        // Extraire #tags
-        const tagRegex = /#(\w+)/g;
-        let tagMatch;
-        while ((tagMatch = tagRegex.exec(cleanText)) !== null) { tags.push(tagMatch[1]); cleanText = cleanText.replace(tagMatch[0], ''); }
-
-        const subtasks = lines.slice(1).map(l => ({ text: l.trim().replace(/^- /, ''), completed: false }));
-
-        const newTodo = {
-          text: cleanText.trim(), completed: false, category: currentCategory === 'Tous' ? 'Général' : currentCategory,
-          priority, tags, subtasks, notes: '', paused: false, created_at: new Date()
-        };
-
-        input.value = '';
-        input.style.height = 'auto';
-        document.getElementById('autocomplete-list').classList.add('hidden');
-
-        // Local Optimistic UI
-        const tempId = Date.now();
-        todos.unshift({ id: tempId, ...newTodo });
-        saveLocal();
-
-        const { data, error } = await supabaseClient.from('todos').insert([newTodo]).select();
-        if (!error && data) {
-          todos = todos.map(t => t.id === tempId ? data[0] : t);
-          saveLocal();
+    function handleInputKey(e) {
+      if (e.key === 'Enter') {
+        if (e.shiftKey) {
+          // Maj+Entrée ajoute une simple ligne (comportement naturel d'une tâche textuelle)
+          setTimeout(() => { 
+            const input = e.target;
+            input.style.height = 'auto'; 
+            input.style.height = (input.scrollHeight) + 'px'; 
+          }, 0);
+        } else {
+          e.preventDefault();
+          submitNewTask();
         }
-      } else if (e.key === 'Enter' && e.shiftKey) {
-        // Auto-resize
-        setTimeout(() => { e.target.style.height = 'auto'; e.target.style.height = (e.target.scrollHeight) + 'px'; }, 0);
       }
     }
 
-    // --- AUTOCOMPLÉTION ($) ---
+    async function submitNewTask() {
+      const input = document.getElementById('todo-input');
+      const text = input.value;
+      if (!text.trim()) return;
+
+      const lines = text.split('\n').filter(l => l.trim());
+      const mainLine = lines[0];
+      
+      let tags = []; let priority = 1; let cleanText = mainLine;
+
+      const prioMatch = cleanText.match(/!([1-4])/);
+      if (prioMatch) { priority = parseInt(prioMatch[1]); cleanText = cleanText.replace(prioMatch[0], ''); }
+      
+      const tagRegex = /#(\w+)/g;
+      let tagMatch;
+      while ((tagMatch = tagRegex.exec(cleanText)) !== null) { tags.push(tagMatch[1]); cleanText = cleanText.replace(tagMatch[0], ''); }
+
+      const subtasks = lines.slice(1).map((l, idx) => ({ 
+        id: Date.now() + idx, 
+        text: l.trim().replace(/^- /, ''), 
+        completed: false, tags: [], priority: 1, duration: '' 
+      }));
+
+      const newTodo = {
+        text: cleanText.trim(), completed: false, 
+        category: currentCategory === 'Tous' ? 'Général' : currentCategory,
+        priority, tags: [...new Set(tags)], duration: '', subtasks, notes: '', paused: false, created_at: new Date()
+      };
+
+      input.value = ''; input.style.height = 'auto';
+      document.getElementById('autocomplete-list').classList.add('hidden');
+
+      const tempId = Date.now();
+      todos.unshift({ id: tempId, ...newTodo });
+      saveLocal();
+
+      const { data, error } = await supabaseClient.from('todos').insert([newTodo]).select();
+      if (!error && data) {
+        todos = todos.map(t => t.id === tempId ? data[0] : t);
+        saveLocal();
+      }
+    }
+
     function handleAutocomplete(e) {
       const val = e.target.value;
-      const cursor = e.target.selectionStart;
-      const textBefore = val.substring(0, cursor);
-      const match = textBefore.match(/\$([a-zA-Z0-9_àéèêàâôûùç-]*)$/);
-      
+      const match = val.substring(0, e.target.selectionStart).match(/\$([a-zA-Z0-9_àéèêàâôûùç-]*)$/);
       const list = document.getElementById('autocomplete-list');
+      
       if (match) {
         const query = match[1].toLowerCase();
         const filtered = todos.filter(t => t.text.toLowerCase().includes(query)).slice(0, 5);
@@ -290,9 +334,7 @@
           list.innerHTML = filtered.map(t => `<li class="px-4 py-2 hover:bg-slate-100 cursor-pointer text-sm" onmousedown="insertLink('${t.text.replace(/'/g, "\\'")}')">${t.text}</li>`).join('');
           list.classList.remove('hidden');
         } else list.classList.add('hidden');
-      } else {
-        list.classList.add('hidden');
-      }
+      } else list.classList.add('hidden');
     }
 
     function insertLink(taskText) {
@@ -304,23 +346,15 @@
       input.focus();
     }
 
-    // --- SYSTÈME DE LIENS ET DÉPENDANCES ---
     function parseHyperlinks(text) {
       return text.replace(/\$([a-zA-Z0-9_àéèêàâôûùç\s-]+?)(?=\s|$)/g, (match, targetName) => {
         const target = todos.find(t => t.text.toLowerCase() === targetName.toLowerCase().trim());
         if (target) {
-          const isDone = target.completed || (target.subtasks && target.subtasks.length > 0 && target.subtasks.every(s => s.completed));
-          const color = isDone ? '#22c55e' : '#ef4444';
-          return `<span style="color: ${color}" class="font-bold underline cursor-pointer" onclick="event.stopPropagation(); scrollToTask(${target.id})">$${targetName}</span>`;
+          const isDone = target.completed;
+          return `<span style="color: ${isDone ? '#22c55e' : '#ef4444'}" class="font-bold underline cursor-pointer" onclick="event.stopPropagation(); scrollToTask(${target.id})">$${targetName}</span>`;
         }
         return `<span class="text-indigo-600 underline">${match}</span>`;
       });
-    }
-
-    function getBacklinks(taskId) {
-      const targetTodo = todos.find(t => t.id === taskId);
-      if (!targetTodo) return [];
-      return todos.filter(t => t.text.toLowerCase().includes('$' + targetTodo.text.toLowerCase()));
     }
 
     function checkDependencies(todo) {
@@ -329,306 +363,185 @@
       while ((match = depRegex.exec(todo.text)) !== null) {
         const targetName = match[1].trim().toLowerCase();
         const targetTodo = todos.find(t => t.text.toLowerCase() === targetName);
-        if (targetTodo && !targetTodo.completed) return false;
+        if (targetTodo && !targetTodo.completed) return targetTodo;
       }
-      return true;
+      return null;
     }
 
-    async function handleToggle(e, id) {
+    function showDependencyAlert(targetTodo) {
+      document.getElementById('dep-task-name').textContent = targetTodo.text;
+      document.getElementById('dep-btn-voir').onclick = () => {
+        closeDependencyModal();
+        scrollToTask(targetTodo.id);
+      };
+      document.getElementById('dependency-modal').classList.remove('hidden');
+      document.getElementById('dependency-modal').classList.add('flex');
+    }
+    
+    function closeDependencyModal() { 
+        document.getElementById('dependency-modal').classList.add('hidden'); 
+    }
+
+    async function handleToggle(e, id, isSub = false, parentId = null) {
       e.stopPropagation();
-      const todo = todos.find(t => t.id === id);
-      if (!todo.completed && !checkDependencies(todo)) {
-        alert("Impossible : Une tâche liée (précédée de $) n'est pas encore terminée !");
-        return;
+      let todo, parentTodo;
+      
+      if (isSub) {
+        parentTodo = todos.find(t => t.id === parentId);
+        todo = parentTodo.subtasks.find(s => s.id === id);
+      } else {
+        todo = todos.find(t => t.id === id);
+        const blocker = checkDependencies(todo);
+        if (!todo.completed && blocker) { showDependencyAlert(blocker); return; }
       }
+
       todo.completed = !todo.completed;
       saveLocal();
-      await supabaseClient.from('todos').update({ completed: todo.completed }).eq('id', id);
+
+      if (isSub) await supabaseClient.from('todos').update({ subtasks: parentTodo.subtasks }).eq('id', parentId);
+      else await supabaseClient.from('todos').update({ completed: todo.completed }).eq('id', id);
     }
 
-    // --- RENDU PRINCIPAL ---
+    async function handleDelete(id) {
+      todos = todos.filter(t => t.id !== id);
+      saveLocal();
+      await supabaseClient.from('todos').delete().eq('id', id);
+    }
+
+    async function handlePause(id) {
+      const todo = todos.find(t => t.id === id);
+      todo.paused = !todo.paused;
+      saveLocal();
+      await supabaseClient.from('todos').update({ paused: todo.paused }).eq('id', id);
+    }
+
     function render() {
-      renderCategories();
+      const cats = extractGlobalCategories();
+      const nav = document.getElementById('category-tabs');
+      nav.innerHTML = cats.map(cat => `<button onclick="currentCategory='${cat}'; render();" class="px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${currentCategory === cat ? 'bg-slate-900 text-white' : 'bg-white text-slate-500 border border-slate-200'}">${cat}</button>`).join('') + 
+      `<button onclick="addCategory()" class="px-3 py-1.5 rounded-full text-xs font-bold bg-slate-200 text-slate-700">+</button>`;
+
       const listEl = document.getElementById('todo-list');
       listEl.innerHTML = '';
-      document.getElementById('app-container').className = `max-w-2xl mx-auto w-full px-4 transition-all duration-500 ${isHelicopter ? 'view-helicopter' : ''}`;
-      document.getElementById('btn-hide-green').classList.toggle('hidden', !isHelicopter);
-      document.getElementById('progress-section').classList.toggle('hidden', isHelicopter);
 
       const searchQuery = document.getElementById('search-input').value.toLowerCase().trim();
       const sortVal = document.getElementById('sort-select').value;
       const showPaused = document.getElementById('show-paused').checked;
 
-      // Filtrage
       let filtered = todos.filter(t => {
         if (t.paused && !showPaused) return false;
         if (!t.paused && showPaused) return false;
-        
         const catMatch = (currentCategory === 'Tous') || (t.category === currentCategory);
         let tagMatch = true;
         if (searchQuery) {
           const terms = searchQuery.split(' ');
           const tagsStr = (t.tags || []).join(' ').toLowerCase();
           const textStr = t.text.toLowerCase();
-          
-          tagMatch = terms.every(q => {
-            if (q.startsWith('-#')) return !tagsStr.includes(q.substring(2));
-            return tagsStr.includes(q) || textStr.includes(q);
-          });
+          tagMatch = terms.every(q => q.startsWith('-#') ? !tagsStr.includes(q.substring(2)) : (tagsStr.includes(q) || textStr.includes(q)));
         }
         return catMatch && tagMatch;
       });
 
-      // Tri
-      filtered.sort((a, b) => {
-        if (sortVal === 'priority') {
-          if (b.priority !== a.priority) return b.priority - a.priority;
-          return b.id - a.id;
-        }
-        return sortVal === 'date-asc' ? a.id - b.id : b.id - a.id;
-      });
+      filtered.sort((a, b) => sortVal === 'priority' ? (b.priority - a.priority || b.id - a.id) : (sortVal === 'date-asc' ? a.id - b.id : b.id - a.id));
 
-      updateTabProgress(filtered);
-
-      // Rendu
-      filtered.forEach(todo => {
-        const hasSub = todo.subtasks && todo.subtasks.length > 0;
-        const doneSubs = hasSub ? todo.subtasks.filter(s => s.completed).length : 0;
-        const pct = hasSub ? Math.round((doneSubs / todo.subtasks.length) * 100) : (todo.completed ? 100 : 0);
-        
-        let colorClass = 'progress-red';
-        if (pct >= 100) colorClass = 'progress-green';
-        else if (pct >= 66) colorClass = 'progress-yellow';
-        else if (pct >= 33) colorClass = 'progress-orange';
-
-        if (isHelicopter && hideGreenInHelicopter && pct >= 100) return;
-
-        const li = document.createElement('li');
-        li.id = `task-${todo.id}`;
-        // Design Hélico vs Normal
-        li.className = isHelicopter ? colorClass : `bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80 mb-3 border-l-[6px] prio-${todo.priority || 1} ${todo.completed ? 'opacity-50' : ''}`;
-        
-        if (isHelicopter) {
-          li.title = `${todo.text} (${pct}%)`;
-          li.onclick = () => { toggleHelicopter(); scrollToTask(todo.id); };
-        } else {
-          const backlinks = getBacklinks(todo.id);
-          li.innerHTML = `
-            <div class="flex items-start gap-3">
-              <!-- Coche -->
-              <div onclick="handleToggle(event, ${todo.id})" class="mt-1 flex-shrink-0 w-7 h-7 rounded-full border-2 ${todo.completed ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300'} flex items-center justify-center text-white text-sm font-bold cursor-pointer transition-colors">
-                ${todo.completed ? '✓' : ''}
-              </div>
-              
-              <!-- Contenu Principal (Clic = Edit) -->
-              <div class="flex-1 cursor-pointer" onclick="openModal(${todo.id})">
-                <div class="text-[17px] font-semibold ${todo.completed ? 'line-through text-slate-400' : 'text-slate-800'} leading-tight">
-                  ${parseHyperlinks(todo.text)}
-                </div>
-                
-                <div class="flex flex-wrap gap-1 mt-1.5">
-                  ${(todo.tags || []).map(tag => `<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md font-bold">#${tag}</span>`).join('')}
-                </div>
-
-                ${backlinks.length > 0 ? `<div class="mt-2 text-[10px] text-indigo-500 font-bold bg-indigo-50 inline-block px-2 py-0.5 rounded">↳ Cité dans : ${backlinks.map(b=>b.text).join(', ')}</div>` : ''}
-                
-                ${todo.notes ? `<div class="mt-2 text-xs text-slate-500 line-clamp-2 border-l-2 border-slate-200 pl-2 font-serif">${todo.notes}</div>` : ''}
-              </div>
-
-              <!-- Menu 3 points -->
-              <button onclick="openModal(${todo.id}); event.stopPropagation();" class="text-slate-300 hover:text-slate-700 text-2xl font-bold px-2 py-1 leading-none">⋮</button>
-            </div>
-
-            <!-- Sous-tâches affichées -->
-            ${hasSub ? `
-              <div class="mt-3 ml-10">
-                <button onclick="toggleSubVisibility(event, ${todo.id})" class="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1 mb-2">
-                  <span id="chevron-${todo.id}">▼</span> Sous-tâches (${doneSubs}/${todo.subtasks.length})
-                </button>
-                <div id="subs-${todo.id}" class="space-y-1.5 border-l-2 border-slate-100 pl-3">
-                  ${todo.subtasks.map((st, idx) => `
-                    <div class="flex items-center gap-2 text-sm cursor-pointer" onclick="toggleMainSubtask(event, ${todo.id}, ${idx})">
-                      <input type="checkbox" ${st.completed ? 'checked' : ''} class="accent-slate-900 w-3.5 h-3.5" onclick="event.stopPropagation(); toggleMainSubtask(event, ${todo.id}, ${idx})">
-                      <span class="${st.completed ? 'line-through text-slate-400' : 'text-slate-700'}">${st.text}</span>
-                    </div>
-                  `).join('')}
-                </div>
-              </div>
-            ` : ''}
-          `;
-        }
-        listEl.appendChild(li);
-      });
-    }
-
-    // --- SOUS-TÂCHES (UI Principale) ---
-    function toggleSubVisibility(e, id) {
-      e.stopPropagation();
-      const div = document.getElementById(`subs-${id}`);
-      const chevron = document.getElementById(`chevron-${id}`);
-      if (div.classList.contains('hidden')) { div.classList.remove('hidden'); chevron.textContent = '▼'; }
-      else { div.classList.add('hidden'); chevron.textContent = '▶'; }
-    }
-
-    async function toggleMainSubtask(e, taskId, subIdx) {
-      e.stopPropagation();
-      const todo = todos.find(t => t.id === taskId);
-      todo.subtasks[subIdx].completed = !todo.subtasks[subIdx].completed;
-      saveLocal();
-      await supabaseClient.from('todos').update({ subtasks: todo.subtasks }).eq('id', taskId);
-    }
-
-    // --- CALCUL PROGRESSION ONGLET ---
-    function updateTabProgress(filteredTodos) {
-      if (isHelicopter) return;
       document.getElementById('current-tab-name').textContent = currentCategory;
       const bar = document.getElementById('global-bar');
       const text = document.getElementById('global-pct-text');
       
-      if (filteredTodos.length === 0) {
-        text.textContent = '0%'; bar.style.width = '0%'; bar.className = 'h-2.5 w-0 progress-red transition-all duration-300'; return;
-      }
-
       let totalPct = 0;
-      filteredTodos.forEach(t => {
-        if (t.subtasks && t.subtasks.length > 0) {
-          totalPct += (t.subtasks.filter(s => s.completed).length / t.subtasks.length) * 100;
-        } else {
-          totalPct += t.completed ? 100 : 0;
-        }
-      });
-      const avg = Math.round(totalPct / filteredTodos.length);
+      filtered.forEach(t => totalPct += (t.subtasks && t.subtasks.length > 0) ? (t.subtasks.filter(s => s.completed).length / t.subtasks.length)*100 : (t.completed ? 100 : 0));
+      const avg = filtered.length ? Math.round(totalPct / filtered.length) : 0;
       
-      let color = 'progress-red';
-      if (avg >= 100) color = 'progress-green'; else if (avg >= 66) color = 'progress-yellow'; else if (avg >= 33) color = 'progress-orange';
-      
-      text.textContent = `${avg}%`;
-      bar.style.width = `${avg}%`;
-      bar.className = `h-2.5 transition-all duration-300 ${color}`;
-    }
+      text.textContent = `${avg}%`; bar.style.width = `${avg}%`;
+      bar.className = `h-2.5 transition-all duration-300 ${avg >= 100 ? 'progress-green' : avg >= 66 ? 'progress-yellow' : avg >= 33 ? 'progress-orange' : 'progress-red'}`;
 
-    // --- GESTION DES ONGलेट्स ---
-    function renderCategories() {
-      const nav = document.getElementById('category-tabs');
-      nav.innerHTML = '';
-      categoriesList.forEach(cat => {
-        const btn = document.createElement('button');
-        btn.className = `px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${currentCategory === cat ? 'bg-slate-900 text-white shadow-sm' : 'bg-white text-slate-500 border border-slate-200'}`;
-        btn.textContent = cat;
-        btn.onclick = () => { currentCategory = cat; render(); };
-        nav.appendChild(btn);
-      });
-      const addBtn = document.createElement('button');
-      addBtn.className = 'px-3 py-1.5 rounded-full text-xs font-bold bg-slate-200 text-slate-700';
-      addBtn.textContent = '+';
-      addBtn.onclick = () => {
-        const name = prompt('Nouvelle catégorie :');
-        if (name && !categoriesList.includes(name)) { categoriesList.push(name); currentCategory = name; render(); }
-      };
-      nav.appendChild(addBtn);
-    }
+      filtered.forEach(todo => {
+        const hasSub = todo.subtasks && todo.subtasks.length > 0;
+        const subPct = hasSub ? Math.round((todo.subtasks.filter(s => s.completed).length / todo.subtasks.length)*100) : (todo.completed ? 100 : 0);
+        let cColor = subPct >= 100 ? 'progress-green' : subPct >= 66 ? 'progress-yellow' : subPct >= 33 ? 'progress-orange' : 'progress-red';
 
-    // --- MODALE D'ÉDITION ---
-    function openModal(id) {
-      const todo = todos.find(t => t.id === id);
-      document.getElementById('modal-task-id').value = todo.id;
-      document.getElementById('modal-title').value = todo.text;
-      
-      const catSelect = document.getElementById('modal-category');
-      catSelect.innerHTML = categoriesList.map(c => `<option value="${c}">${c}</option>`).join('');
-      catSelect.value = todo.category || 'Général';
-      
-      document.getElementById('modal-priority').value = todo.priority || 1;
-      document.getElementById('modal-tags').value = (todo.tags || []).join(', ');
-      document.getElementById('modal-notes').value = todo.notes || '';
-      document.getElementById('modal-paused').checked = !!todo.paused;
+        const backlinks = todos.filter(t => t.text.toLowerCase().includes('$' + todo.text.toLowerCase()));
 
-      renderModalSubtasks(todo.subtasks || []);
-      document.getElementById('edit-modal').classList.remove('hidden');
-      document.getElementById('edit-modal').classList.add('flex');
-    }
-
-    function closeModal() {
-      document.getElementById('edit-modal').classList.add('hidden');
-      document.getElementById('edit-modal').classList.remove('flex');
-    }
-    function closeModalOnOut(e) { if (e.target.id === 'edit-modal') closeModal(); }
-
-    function renderModalSubtasks(subtasks) {
-      const container = document.getElementById('modal-subtasks-list');
-      container.innerHTML = subtasks.map((st, i) => `
-        <div class="flex items-center justify-between bg-white p-2 rounded-lg border border-slate-100 text-sm">
-          <div class="flex items-center gap-2">
-            <input type="checkbox" ${st.completed ? 'checked' : ''} onchange="toggleModalSubtask(${i})" class="accent-slate-900 w-4 h-4">
-            <span class="${st.completed ? 'line-through text-slate-400' : ''}">${st.text}</span>
+        const li = document.createElement('li');
+        li.id = `task-${todo.id}`;
+        li.className = "swipe-wrapper";
+        
+        li.innerHTML = `
+          <div class="swipe-background">
+            <div class="swipe-bg-left">✓ Valider</div>
+            <div class="swipe-bg-pause">⏸ Pause</div>
+            <div class="swipe-bg-right">✕ Supprimer</div>
           </div>
-          <button onclick="removeSubtask(${i})" class="text-rose-500 font-bold">&times;</button>
-        </div>
-      `).join('');
+          <div class="swipe-content bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80 border-l-[6px] prio-${todo.priority || 1} ${todo.completed ? 'opacity-50' : ''}" id="swipe-content-${todo.id}">
+            
+            <div class="cube-indicator ${cColor}"></div>
+
+            <div class="task-details flex items-start gap-3 cursor-pointer" onclick="openModal(${todo.id}, false)">
+              <div onclick="handleToggle(event, ${todo.id})" class="mt-1 flex-shrink-0 w-7 h-7 rounded-full border-2 ${todo.completed ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300'} flex items-center justify-center text-white text-sm font-bold">
+                ${todo.completed ? '✓' : ''}
+              </div>
+              <div class="flex-1">
+                <div class="text-[17px] font-semibold ${todo.completed ? 'line-through text-slate-400' : 'text-slate-800'}">
+                  ${parseHyperlinks(todo.text)}
+                  ${todo.duration ? `<span class="ml-2 text-xs font-mono text-slate-400">⏱ ${todo.duration}</span>` : ''}
+                </div>
+                <div class="flex flex-wrap gap-1 mt-1.5">
+                  ${(todo.tags || []).map(tag => `<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md font-bold">#${tag}</span>`).join('')}
+                </div>
+                ${backlinks.length > 0 ? `<div class="mt-2 text-[10px] text-indigo-500 font-bold bg-indigo-50 inline-block px-2 py-0.5 rounded">↳ Cité dans : ${backlinks.map(b => `<span class="underline cursor-pointer" onclick="event.stopPropagation(); scrollToTask(${b.id})">${b.text}</span>`).join(', ')}</div>` : ''}
+              </div>
+              <button onclick="quickAddSubtask(event, ${todo.id})" class="text-slate-400 hover:text-slate-800 text-2xl font-bold px-2 leading-none" title="Ajouter une sous-tâche">+</button>
+            </div>
+
+            ${hasSub ? `
+              <div class="task-progress-bar w-full bg-slate-100 h-1.5 rounded-full mt-3 overflow-hidden">
+                <div class="h-1.5 transition-all ${cColor}" style="width: ${subPct}%"></div>
+              </div>
+              <div class="subtask-container mt-3 ml-10 border-l-2 border-slate-100 pl-3 space-y-2">
+                ${todo.subtasks.map(st => `
+                  <div class="flex items-start gap-2 cursor-pointer" onclick="openModal(${st.id}, true, ${todo.id})">
+                    <input type="checkbox" ${st.completed ? 'checked' : ''} class="mt-1 accent-slate-900 w-4 h-4" onclick="handleToggle(event, ${st.id}, true, ${todo.id})">
+                    <div class="flex-1">
+                      <span class="${st.completed ? 'line-through text-slate-400' : 'text-slate-700'} text-sm">${parseHyperlinks(st.text)}</span>
+                      ${st.duration ? `<span class="ml-2 text-[10px] font-mono text-slate-400">⏱ ${st.duration}</span>` : ''}
+                      <div class="flex gap-1 mt-0.5">${(st.tags || []).map(tag => `<span class="text-[9px] bg-slate-100 text-slate-500 px-1 rounded font-bold">#${tag}</span>`).join('')}</div>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            ` : ''}
+          </div>
+        `;
+        listEl.appendChild(li);
+        setupSwipe(`swipe-content-${todo.id}`, todo.id);
+      });
     }
 
-    function toggleModalSubtask(idx) {
-      const id = parseInt(document.getElementById('modal-task-id').value);
-      const todo = todos.find(t => t.id === id);
-      todo.subtasks[idx].completed = !todo.subtasks[idx].completed;
-      renderModalSubtasks(todo.subtasks);
-    }
-    function removeSubtask(idx) {
-      const id = parseInt(document.getElementById('modal-task-id').value);
-      const todo = todos.find(t => t.id === id);
-      todo.subtasks.splice(idx, 1);
-      renderModalSubtasks(todo.subtasks);
-    }
-    function addModalSubtask() {
-      const input = document.getElementById('new-subtask-input');
-      const text = input.value.trim();
-      if (!text) return;
-      const id = parseInt(document.getElementById('modal-task-id').value);
-      const todo = todos.find(t => t.id === id);
-      if(!todo.subtasks) todo.subtasks = [];
-      todo.subtasks.push({ text, completed: false });
-      input.value = '';
-      renderModalSubtasks(todo.subtasks);
-    }
-    function resetSubtasks() {
-      const id = parseInt(document.getElementById('modal-task-id').value);
-      const todo = todos.find(t => t.id === id);
-      if(todo.subtasks) todo.subtasks.forEach(s => s.completed = false);
-      renderModalSubtasks(todo.subtasks);
-    }
-
-    async function saveModalChanges() {
-      const id = parseInt(document.getElementById('modal-task-id').value);
-      const text = document.getElementById('modal-title').value;
-      const category = document.getElementById('modal-category').value;
-      const priority = parseInt(document.getElementById('modal-priority').value);
-      const tags = document.getElementById('modal-tags').value.split(',').map(s => s.trim()).filter(Boolean);
-      const notes = document.getElementById('modal-notes').value;
-      const paused = document.getElementById('modal-paused').checked;
-
-      const todo = todos.find(t => t.id === id);
-      const updates = { text, category, priority, tags, notes, paused, subtasks: todo.subtasks };
-      
-      Object.assign(todo, updates);
-      saveLocal();
-      closeModal();
-      await supabaseClient.from('todos').update(updates).eq('id', id);
-    }
-
-    function copyAnchorLink() {
-      const title = document.getElementById('modal-title').value;
-      navigator.clipboard.writeText(`$${title}`);
-      alert("Lien copié : $" + title);
-    }
-
-    // --- UTILITAIRES ---
-    function scrollToTask(id) {
-      const el = document.getElementById(`task-${id}`);
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        el.classList.add('ring-4', 'ring-indigo-300');
-        setTimeout(() => el.classList.remove('ring-4', 'ring-indigo-300'), 1500);
+    function addCategory() {
+      const name = prompt('Nouvelle catégorie :');
+      if (name) {
+        let customCats = JSON.parse(localStorage.getItem('todoapp_custom_cats') || '[]');
+        if (!customCats.includes(name)) { customCats.push(name); localStorage.setItem('todoapp_custom_cats', JSON.stringify(customCats)); }
+        currentCategory = name; render();
       }
+    }
+
+    // --- LOGIQUE DE SWIPE ---
+    function setupSwipe(elementId, taskId) {
+      const el = document.getElementById(elementId);
+      if (!el) return;
+      let startX = 0, currentX = 0;
+      el.addEventListener('touchstart', e => startX = e.touches[0].clientX, {passive: true});
+      el.addEventListener('touchmove', e => {
+        currentX = e.touches[0].clientX - startX;
+        if (Math.abs(currentX) > 20) { e.preventDefault(); el.style.transform = `translateX(${currentX}px)`; }
+      }, {passive: false});
+      el.addEventListener('touchend', () => {
+        if (currentX > 100) handleToggle({stopPropagation:()=>{}}, taskId); // Valider
+        else if (currentX < -150) handleDelete(taskId); // Supprimer
+        else if (currentX < -75) handlePause(taskId); // Pause
+        el.style.transform = 'translateX(0)'; currentX = 0;
+      });
     }
 
     function toggleSearch() {
@@ -639,10 +552,11 @@
       else { input.value = ''; render(); }
     }
 
-    function toggleHelicopter() { isHelicopter = !isHelicopter; render(); }
-    function filterHelicopter(color) { if(color==='Vert') hideGreenInHelicopter = !hideGreenInHelicopter; render(); }
-
-    function openSettings() { document.getElementById('settings-modal').classList.remove('hidden'); document.getElementById('settings-modal').classList.add('flex'); }
+    // --- MODALES (Paramètres & Edition) ---
+    function openSettings() { 
+      document.getElementById('settings-modal').classList.remove('hidden'); 
+      document.getElementById('settings-modal').classList.add('flex'); 
+    }
     
     function exportJSON() {
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(todos));
@@ -659,15 +573,97 @@
       reader.onload = async function(e) {
         try {
           const imported = JSON.parse(e.target.result);
-          todos = imported; saveLocal(); updateCategoriesFromData();
-          alert("Import réussi !"); document.getElementById('settings-modal').classList.add('hidden'); render();
-        } catch(err) { alert("Erreur d'importation du fichier."); }
+          todos = imported; saveLocal();
+          alert("Import réussi !"); 
+          document.getElementById('settings-modal').classList.add('hidden'); 
+          render();
+        } catch(err) { alert("Erreur d'importation."); }
       };
       reader.readAsText(file);
     }
 
-    // Initialisation
-    loadLocal();
+    function openModal(id, isSub = false, parentId = null) {
+      const todo = isSub ? todos.find(t => t.id === parentId).subtasks.find(s => s.id === id) : todos.find(t => t.id === id);
+      document.getElementById('modal-task-id').value = id;
+      document.getElementById('modal-is-subtask').value = isSub;
+      document.getElementById('modal-parent-id').value = parentId;
+      
+      document.getElementById('modal-title').value = todo.text;
+      document.getElementById('modal-priority').value = todo.priority || 1;
+      document.getElementById('modal-duration').value = todo.duration || '';
+      document.getElementById('modal-tags').value = (todo.tags || []).join(', ');
+      document.getElementById('modal-notes').value = todo.notes || '';
+
+      const catContainer = document.getElementById('cat-container');
+      if (isSub) catContainer.style.display = 'none';
+      else {
+        catContainer.style.display = 'block';
+        const catSelect = document.getElementById('modal-category');
+        catSelect.innerHTML = extractGlobalCategories().map(c => `<option value="${c}">${c}</option>`).join('');
+        catSelect.value = todo.category || 'Général';
+      }
+
+      document.getElementById('edit-modal').classList.remove('hidden');
+      document.getElementById('edit-modal').classList.add('flex');
+    }
+
+    function closeModal() { 
+        document.getElementById('edit-modal').classList.add('hidden'); 
+        document.getElementById('edit-modal').classList.remove('flex'); 
+    }
+    
+    function closeModalOnOut(e) { 
+        if (e.target.id === 'edit-modal') closeModal(); 
+    }
+
+    async function saveModalChanges() {
+      const id = parseInt(document.getElementById('modal-task-id').value);
+      const isSub = document.getElementById('modal-is-subtask').value === 'true';
+      const parentId = parseInt(document.getElementById('modal-parent-id').value);
+      
+      const text = document.getElementById('modal-title').value;
+      const priority = parseInt(document.getElementById('modal-priority').value);
+      const duration = document.getElementById('modal-duration').value;
+      const tags = [...new Set(document.getElementById('modal-tags').value.split(',').map(s => s.trim()).filter(Boolean))]; 
+      const notes = document.getElementById('modal-notes').value;
+
+      if (isSub) {
+        const parent = todos.find(t => t.id === parentId);
+        const sub = parent.subtasks.find(s => s.id === id);
+        Object.assign(sub, { text, priority, duration, tags, notes });
+        saveLocal();
+        await supabaseClient.from('todos').update({ subtasks: parent.subtasks }).eq('id', parentId);
+      } else {
+        const category = document.getElementById('modal-category').value;
+        const todo = todos.find(t => t.id === id);
+        Object.assign(todo, { text, category, priority, duration, tags, notes });
+        saveLocal();
+        await supabaseClient.from('todos').update({ text, category, priority, duration, tags, notes }).eq('id', id);
+      }
+      closeModal();
+    }
+
+    async function quickAddSubtask(e, parentId) {
+      e.stopPropagation();
+      const text = prompt("Nouvelle sous-tâche :");
+      if (!text) return;
+      const parent = todos.find(t => t.id === parentId);
+      if (!parent.subtasks) parent.subtasks = [];
+      parent.subtasks.push({ id: Date.now(), text, completed: false, tags: [], priority: 1, duration: '' });
+      saveLocal();
+      await supabaseClient.from('todos').update({ subtasks: parent.subtasks }).eq('id', parentId);
+    }
+
+    function scrollToTask(id) {
+      const el = document.getElementById(`task-${id}`);
+      if (el) { 
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' }); 
+          el.firstElementChild.nextElementSibling.classList.add('ring-4', 'ring-indigo-300'); 
+          setTimeout(() => el.firstElementChild.nextElementSibling.classList.remove('ring-4', 'ring-indigo-300'), 1500); 
+      }
+    }
+
+    loadLocal(); 
     syncCloud();
   </script>
 </body>
