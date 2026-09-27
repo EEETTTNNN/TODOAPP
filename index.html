@@ -1,10 +1,10 @@
-<!-- TODOAPP - Version 1.1.0 -->
+<!-- TODOAPP - Version 1.1.1 -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TODOAPP - v1.1.0</title>
+  <title>TODOAPP - v1.1.1</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
@@ -22,7 +22,7 @@
       <div class="flex justify-between items-center mb-4">
         <div class="flex items-center gap-2">
           <h1 class="text-2xl font-extrabold text-slate-900">TODOAPP</h1>
-          <span class="text-xs font-semibold bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full">v1.1.0</span>
+          <span class="text-xs font-semibold bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full">v1.1.1</span>
         </div>
         <div class="flex items-center gap-2">
           <button onclick="toggleShowPaused()" id="btn-show-paused" class="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-200 transition-colors">
@@ -148,7 +148,7 @@
     const SUPABASE_KEY = "sb_publishable_6f1T8ttm3Lc0yTSqsHUikA_XW5eo3X7";
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let todos = JSON.parse(localStorage.getItem('todoapp_v110') || '[]');
+    let todos = JSON.parse(localStorage.getItem('todoapp_v111') || localStorage.getItem('todoapp_v110') || '[]');
     let categories = ["Tout", "Général", "Maison", "Jardin", "Voiture", "Aster", "Aimé"];
     let activeCategory = "Tout";
     let showPaused = false;
@@ -156,7 +156,7 @@
     let currentEditing = { id: null, selectedCategory: 'Général', selectedPriority: 0 };
 
     function saveLocal() {
-      localStorage.setItem('todoapp_v110', JSON.stringify(todos));
+      localStorage.setItem('todoapp_v111', JSON.stringify(todos));
       render();
     }
 
@@ -265,9 +265,14 @@
       saveLocal();
 
       await supabaseClient.from('todos').upsert([newSub]);
+
+      // Si le parent était coché, ajouter une sous-tâche non cochée décoche le parent
+      if (parent && parent.completed) {
+        await uncompleteAncestors(parentId);
+      }
     }
 
-    // --- COCHE ET VÉRIFICATION AUTO DES PARENTS ---
+    // --- GESTION DE LA COCHE (RÈGLE PARENT / SOUS-TÂCHE INTELLIGENTE) ---
     async function toggleTask(e, id) {
       if (e) e.stopPropagation();
       const task = todos.find(t => t.id === id);
@@ -280,12 +285,36 @@
       saveLocal();
       await supabaseClient.from('todos').upsert([task]);
 
-      // Si la sous-tâche est cochée, vérifier si toutes les sous-tâches sœurs sont cochées pour cocher le parent
-      if (newStatus && task.parent_id) {
-        await checkAndCompleteParent(task.parent_id);
+      if (newStatus) {
+        // Tâche cochée -> vérifier si toutes les sœurs sont aussi cochées pour cocher le parent
+        if (task.parent_id) {
+          await checkAndCompleteParent(task.parent_id);
+        }
+      } else {
+        // Tâche décochée -> le parent DOIT se décocher automatiquement (récursif)
+        if (task.parent_id) {
+          await uncompleteAncestors(task.parent_id);
+        }
       }
     }
 
+    // Décochage récursif des parents vers le haut
+    async function uncompleteAncestors(parentId) {
+      if (!parentId) return;
+      const parent = todos.find(t => t.id === parentId);
+      if (parent && parent.completed) {
+        parent.completed = false;
+        parent.updated_at = new Date().toISOString();
+        saveLocal();
+        await supabaseClient.from('todos').upsert([parent]);
+
+        if (parent.parent_id) {
+          await uncompleteAncestors(parent.parent_id);
+        }
+      }
+    }
+
+    // Cochage récursif des parents vers le haut si toutes les sous-tâches sont complétées
     async function checkAndCompleteParent(parentId) {
       if (!parentId) return;
 
@@ -301,7 +330,6 @@
           saveLocal();
           await supabaseClient.from('todos').upsert([parent]);
 
-          // Propagation récursive vers les niveaux supérieurs
           if (parent.parent_id) {
             await checkAndCompleteParent(parent.parent_id);
           }
@@ -312,7 +340,6 @@
     async function deleteTask(e, id) {
       if (e) e.stopPropagation();
       
-      // Supprime la tâche et toutes ses sous-tâches récursivement
       const idsToDelete = [];
       function collectIds(targetId) {
         idsToDelete.push(targetId);
