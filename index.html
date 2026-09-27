@@ -1,4 +1,4 @@
-<!-- TODOAPP - Version 1.0.5 -->
+<!-- TODOAPP - Version 1.0.5 (avec Supabase) -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TODOAPP - v1.0.5</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body { -webkit-tap-highlight-color: transparent; }
   </style>
@@ -16,8 +17,13 @@
     
     <!-- En-tête -->
     <header class="flex justify-between items-center mb-6">
-      <h1 class="text-2xl font-extrabold text-slate-900">TODOAPP</h1>
-      <span class="text-xs font-semibold bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full">v1.0.5</span>
+      <div class="flex items-center gap-2">
+        <h1 class="text-2xl font-extrabold text-slate-900">TODOAPP</h1>
+        <span class="text-xs font-semibold bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full">v1.0.5</span>
+      </div>
+      <button onclick="syncCloud()" class="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-600 text-xs font-semibold transition-colors flex items-center gap-1.5" title="Synchroniser">
+        <span id="sync-icon">🔄</span> Sync
+      </button>
     </header>
 
     <!-- Zone de Saisie -->
@@ -35,45 +41,113 @@
     <!-- Liste des tâches -->
     <ul id="task-list" class="space-y-2"></ul>
 
-    <!-- Compteur -->
-    <footer class="mt-6 pt-4 border-t border-slate-100 text-xs text-slate-400 flex justify-between">
+    <!-- Compteur & Statut -->
+    <footer class="mt-6 pt-4 border-t border-slate-100 text-xs text-slate-400 flex justify-between items-center">
       <span id="task-count">0 tâche</span>
+      <span id="sync-status" class="text-emerald-600 font-medium">● Connecté</span>
     </footer>
 
   </div>
 
   <script>
+    const SUPABASE_URL = "https://bwirwhcetlfwzqswbfwr.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_6f1T8ttm3Lc0yTSqsHUikA_XW5eo3X7";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
     let todos = JSON.parse(localStorage.getItem('todoapp_v105') || '[]');
 
-    function saveAndRender() {
+    function saveLocal() {
       localStorage.setItem('todoapp_v105', JSON.stringify(todos));
       render();
     }
 
-    function addTask(e) {
+    async function syncCloud() {
+      const syncIcon = document.getElementById('sync-icon');
+      const syncStatus = document.getElementById('sync-status');
+      if (syncIcon) syncIcon.classList.add('animate-spin');
+      
+      try {
+        const { data, error } = await supabaseClient
+          .from('todos')
+          .select('*')
+          .order('id', { ascending: false });
+
+        if (!error && data) {
+          todos = data;
+          saveLocal();
+          if (syncStatus) {
+            syncStatus.textContent = "● Synchro OK";
+            syncStatus.className = "text-emerald-600 font-medium";
+          }
+        } else if (error) {
+          throw error;
+        }
+      } catch (err) {
+        console.error("Erreur de synchro :", err);
+        if (syncStatus) {
+          syncStatus.textContent = "● Hors-ligne";
+          syncStatus.className = "text-amber-600 font-medium";
+        }
+      } finally {
+        if (syncIcon) syncIcon.classList.remove('animate-spin');
+      }
+    }
+
+    async function addTask(e) {
       e.preventDefault();
       const input = document.getElementById('task-input');
       const text = input.value.trim();
       if (!text) return;
 
-      todos.unshift({
-        id: Date.now(),
+      const tempId = Date.now();
+      const newTodo = {
+        id: tempId,
         text: text,
         completed: false
-      });
+      };
 
+      // 1. Mise à jour locale immédiate
+      todos.unshift(newTodo);
       input.value = '';
-      saveAndRender();
+      saveLocal();
+
+      // 2. Envoi vers Supabase
+      const { data, error } = await supabaseClient
+        .from('todos')
+        .insert([{ text: newTodo.text, completed: false }])
+        .select();
+
+      if (!error && data && data[0]) {
+        // Remplace l'ID temporaire par l'ID généré par Supabase
+        const index = todos.findIndex(t => t.id === tempId);
+        if (index !== -1) {
+          todos[index] = data[0];
+          saveLocal();
+        }
+      }
     }
 
-    function toggleTask(id) {
-      todos = todos.map(t => t.id === id ? { ...t, completed: !t.completed } : t);
-      saveAndRender();
+    async function toggleTask(id) {
+      const todo = todos.find(t => t.id === id);
+      if (!todo) return;
+
+      todo.completed = !todo.completed;
+      saveLocal();
+
+      await supabaseClient
+        .from('todos')
+        .update({ completed: todo.completed })
+        .eq('id', id);
     }
 
-    function deleteTask(id) {
+    async function deleteTask(id) {
       todos = todos.filter(t => t.id !== id);
-      saveAndRender();
+      saveLocal();
+
+      await supabaseClient
+        .from('todos')
+        .delete()
+        .eq('id', id);
     }
 
     function render() {
@@ -120,7 +194,9 @@
       }[match]));
     }
 
+    // Chargement initial
     render();
+    syncCloud();
   </script>
 </body>
 </html>
