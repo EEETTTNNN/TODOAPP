@@ -1,10 +1,10 @@
-<!-- TODOAPP - Version 1.1.1 -->
+<!-- TODOAPP - Version 1.1.2 -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TODOAPP - v1.1.1</title>
+  <title>TODOAPP - v1.1.2</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
@@ -22,7 +22,7 @@
       <div class="flex justify-between items-center mb-4">
         <div class="flex items-center gap-2">
           <h1 class="text-2xl font-extrabold text-slate-900">TODOAPP</h1>
-          <span class="text-xs font-semibold bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full">v1.1.1</span>
+          <span class="text-xs font-semibold bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full">v1.1.2</span>
         </div>
         <div class="flex items-center gap-2">
           <button onclick="toggleShowPaused()" id="btn-show-paused" class="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-200 transition-colors">
@@ -148,7 +148,7 @@
     const SUPABASE_KEY = "sb_publishable_6f1T8ttm3Lc0yTSqsHUikA_XW5eo3X7";
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let todos = JSON.parse(localStorage.getItem('todoapp_v111') || localStorage.getItem('todoapp_v110') || '[]');
+    let todos = JSON.parse(localStorage.getItem('todoapp_v112') || localStorage.getItem('todoapp_v111') || '[]');
     let categories = ["Tout", "Général", "Maison", "Jardin", "Voiture", "Aster", "Aimé"];
     let activeCategory = "Tout";
     let showPaused = false;
@@ -156,19 +156,25 @@
     let currentEditing = { id: null, selectedCategory: 'Général', selectedPriority: 0 };
 
     function saveLocal() {
-      localStorage.setItem('todoapp_v111', JSON.stringify(todos));
+      localStorage.setItem('todoapp_v112', JSON.stringify(todos));
       render();
     }
 
     // --- SYNCHRONISATION EN TEMPS RÉEL (SUPABASE) ---
     function initRealtime() {
       supabaseClient
-        .channel('public:todos')
+        .channel('todos-realtime')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'todos' }, () => {
           syncCloud();
         })
         .subscribe();
     }
+
+    // Événements pour relancer la synchro lors du déverrouillage iPhone / retour sur l'onglet
+    window.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') syncCloud();
+    });
+    window.addEventListener('focus', () => syncCloud());
 
     async function syncCloud() {
       const syncIcon = document.getElementById('sync-icon');
@@ -262,62 +268,52 @@
       };
 
       todos.push(newSub);
-      saveLocal();
-
-      await supabaseClient.from('todos').upsert([newSub]);
 
       // Si le parent était coché, ajouter une sous-tâche non cochée décoche le parent
+      const updatedTasks = [newSub];
       if (parent && parent.completed) {
-        await uncompleteAncestors(parentId);
+        uncompleteAncestors(parentId, updatedTasks);
       }
-    }
-
-    // --- GESTION DE LA COCHE (RÈGLE PARENT / SOUS-TÂCHE INTELLIGENTE) ---
-    async function toggleTask(e, id) {
-      if (e) e.stopPropagation();
-      const task = todos.find(t => t.id === id);
-      if (!task) return;
-
-      const newStatus = !task.completed;
-      task.completed = newStatus;
-      task.updated_at = new Date().toISOString();
 
       saveLocal();
-      await supabaseClient.from('todos').upsert([task]);
+      await supabaseClient.from('todos').upsert(updatedTasks);
+    }
 
-      if (newStatus) {
-        // Tâche cochée -> vérifier si toutes les sœurs sont aussi cochées pour cocher le parent
-        if (task.parent_id) {
-          await checkAndCompleteParent(task.parent_id);
-        }
-      } else {
-        // Tâche décochée -> le parent DOIT se décocher automatiquement (récursif)
-        if (task.parent_id) {
-          await uncompleteAncestors(task.parent_id);
-        }
+    // --- LOGIQUE DES COCHES / DÉCOCHES EN CASCADE ---
+    
+    // Application récursive du statut vers les enfants (cascade descendante)
+    function setTaskAndChildrenStatus(taskId, completed, updatedList) {
+      const task = todos.find(t => t.id === taskId);
+      if (!task) return;
+
+      task.completed = completed;
+      task.updated_at = new Date().toISOString();
+      if (!updatedList.some(u => u.id === task.id)) updatedList.push(task);
+
+      const children = todos.filter(t => t.parent_id === taskId);
+      for (const child of children) {
+        setTaskAndChildrenStatus(child.id, completed, updatedList);
       }
     }
 
-    // Décochage récursif des parents vers le haut
-    async function uncompleteAncestors(parentId) {
+    // Décochage récursif vers le haut (si sous-tâche décochée -> parent décoché)
+    function uncompleteAncestors(parentId, updatedList) {
       if (!parentId) return;
       const parent = todos.find(t => t.id === parentId);
       if (parent && parent.completed) {
         parent.completed = false;
         parent.updated_at = new Date().toISOString();
-        saveLocal();
-        await supabaseClient.from('todos').upsert([parent]);
+        if (!updatedList.some(u => u.id === parent.id)) updatedList.push(parent);
 
         if (parent.parent_id) {
-          await uncompleteAncestors(parent.parent_id);
+          uncompleteAncestors(parent.parent_id, updatedList);
         }
       }
     }
 
-    // Cochage récursif des parents vers le haut si toutes les sous-tâches sont complétées
-    async function checkAndCompleteParent(parentId) {
+    // Cochage récursif vers le haut (si TOUTES les sous-tâches sœurs sont cochées -> parent coché)
+    function checkAndCompleteAncestors(parentId, updatedList) {
       if (!parentId) return;
-
       const siblings = todos.filter(t => t.parent_id === parentId);
       if (siblings.length === 0) return;
 
@@ -327,13 +323,38 @@
         if (parent && !parent.completed) {
           parent.completed = true;
           parent.updated_at = new Date().toISOString();
-          saveLocal();
-          await supabaseClient.from('todos').upsert([parent]);
+          if (!updatedList.some(u => u.id === parent.id)) updatedList.push(parent);
 
           if (parent.parent_id) {
-            await checkAndCompleteParent(parent.parent_id);
+            checkAndCompleteAncestors(parent.parent_id, updatedList);
           }
         }
+      }
+    }
+
+    async function toggleTask(e, id) {
+      if (e) e.stopPropagation();
+      const task = todos.find(t => t.id === id);
+      if (!task) return;
+
+      const newStatus = !task.completed;
+      const updatedTasks = [];
+
+      // 1. Cascade descendante : appliquer à la tâche et à ses enfants
+      setTaskAndChildrenStatus(id, newStatus, updatedTasks);
+
+      // 2. Cascade ascendante : vérifier et ajuster la lignée des parents
+      if (newStatus) {
+        if (task.parent_id) checkAndCompleteAncestors(task.parent_id, updatedTasks);
+      } else {
+        if (task.parent_id) uncompleteAncestors(task.parent_id, updatedTasks);
+      }
+
+      saveLocal();
+
+      // Sauvegarder l'intégralité des tâches modifiées dans Supabase
+      if (updatedTasks.length > 0) {
+        await supabaseClient.from('todos').upsert(updatedTasks);
       }
     }
 
@@ -355,7 +376,7 @@
       }
     }
 
-    // --- GESTION DE LA MODALE ---
+    // --- GESTION DE LA MODALE D'ÉDITION ---
     function openModal(id) {
       const item = todos.find(t => t.id === id);
       if (!item) return;
