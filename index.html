@@ -9,7 +9,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body { -webkit-tap-highlight-color: transparent; }
-    .dragging { opacity: 0.4; }
+    .scrollbar-none::-webkit-scrollbar { display: none; }
+    .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans min-h-screen p-4 sm:p-8">
@@ -17,19 +18,24 @@
   <div class="max-w-xl mx-auto bg-white rounded-3xl shadow-sm border border-slate-200 p-6">
     
     <!-- En-tête -->
-    <header class="flex justify-between items-center mb-6">
-      <div class="flex items-center gap-2">
-        <h1 class="text-2xl font-extrabold text-slate-900">TODOAPP</h1>
-        <span class="text-xs font-semibold bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full">v1.1.0</span>
+    <header class="mb-6">
+      <div class="flex justify-between items-center mb-4">
+        <div class="flex items-center gap-2">
+          <h1 class="text-2xl font-extrabold text-slate-900">TODOAPP</h1>
+          <span class="text-xs font-semibold bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full">v1.1.0</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="toggleShowPaused()" id="btn-show-paused" class="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-200 transition-colors">
+            Afficher masquées
+          </button>
+          <button onclick="syncCloud()" class="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-600 text-xs font-semibold transition-colors flex items-center gap-1.5" title="Synchroniser">
+            <span id="sync-icon">🔄</span>
+          </button>
+        </div>
       </div>
-      <div class="flex items-center gap-2">
-        <button onclick="toggleShowPaused()" id="btn-show-paused" class="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-200 transition-colors">
-          Afficher masquées
-        </button>
-        <button onclick="syncCloud()" class="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-600 text-xs font-semibold transition-colors flex items-center gap-1.5" title="Synchroniser">
-          <span id="sync-icon">🔄</span>
-        </button>
-      </div>
+
+      <!-- Onglets de Catégories -->
+      <div class="flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-slate-100 scrollbar-none" id="category-tabs"></div>
     </header>
 
     <!-- Zone de Saisie -->
@@ -44,10 +50,10 @@
       <button type="submit" class="bg-slate-900 text-white rounded-2xl px-5 font-bold text-xl hover:bg-slate-800 transition-colors">+</button>
     </form>
 
-    <!-- Liste des tâches -->
-    <ul id="task-list" class="space-y-3"></ul>
+    <!-- Arborescence des tâches -->
+    <div id="task-tree" class="space-y-3"></div>
 
-    <!-- Compteur -->
+    <!-- Pied de page -->
     <footer class="mt-6 pt-4 border-t border-slate-100 text-xs text-slate-400 flex justify-between items-center">
       <span id="task-count">0 tâche</span>
       <span id="sync-status" class="text-emerald-600 font-medium">● Connecté</span>
@@ -142,17 +148,26 @@
     const SUPABASE_KEY = "sb_publishable_6f1T8ttm3Lc0yTSqsHUikA_XW5eo3X7";
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let todos = JSON.parse(localStorage.getItem('todoapp_v110') || localStorage.getItem('todoapp_v105') || '[]');
-    let categories = JSON.parse(localStorage.getItem('todoapp_cats') || '["Général", "Travail", "Maison", "Perso"]');
+    let todos = JSON.parse(localStorage.getItem('todoapp_v110') || '[]');
+    let categories = ["Tout", "Général", "Maison", "Jardin", "Voiture", "Aster", "Aimé"];
+    let activeCategory = "Tout";
     let showPaused = false;
 
-    let currentEditing = { id: null, isSubtask: false, parentId: null, selectedCategory: 'Général', selectedPriority: 0 };
-    let dragSrcSubtask = null;
+    let currentEditing = { id: null, selectedCategory: 'Général', selectedPriority: 0 };
 
     function saveLocal() {
       localStorage.setItem('todoapp_v110', JSON.stringify(todos));
-      localStorage.setItem('todoapp_cats', JSON.stringify(categories));
       render();
+    }
+
+    // --- SYNCHRONISATION EN TEMPS RÉEL (SUPABASE) ---
+    function initRealtime() {
+      supabaseClient
+        .channel('public:todos')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'todos' }, () => {
+          syncCloud();
+        })
+        .subscribe();
     }
 
     async function syncCloud() {
@@ -168,20 +183,22 @@
 
         if (!error && data) {
           todos = data.map(item => ({
-            id: item.id,
+            id: Number(item.id),
             text: item.text || '',
             completed: !!item.completed,
             category: item.category || 'Général',
-            priority: item.priority || 0,
-            tags: item.tags || [],
+            priority: Number(item.priority || 0),
+            tags: Array.isArray(item.tags) ? item.tags : [],
             notes: item.notes || '',
             paused: !!item.paused,
             pauseMode: item.pauseMode || 'griser',
-            subtasks: item.subtasks || []
+            parent_id: item.parent_id ? Number(item.parent_id) : null,
+            updated_at: item.updated_at || new Date().toISOString()
           }));
+
           saveLocal();
           if (syncStatus) {
-            syncStatus.textContent = "● Synchro OK";
+            syncStatus.textContent = "● Synchro Temps Réel";
             syncStatus.className = "text-emerald-600 font-medium";
           }
         }
@@ -196,140 +213,143 @@
       }
     }
 
+    // --- CRÉATION DE TÂCHES ET SOUS-TÂCHES ---
     async function addTask(e) {
       e.preventDefault();
       const input = document.getElementById('task-input');
       const text = input.value.trim();
       if (!text) return;
 
-      const tempId = Date.now();
       const newTodo = {
-        id: tempId,
+        id: Date.now(),
         text: text,
         completed: false,
-        category: 'Général',
+        category: activeCategory === 'Tout' ? 'Général' : activeCategory,
         priority: 0,
         tags: [],
         notes: '',
         paused: false,
         pauseMode: 'griser',
-        subtasks: []
+        parent_id: null,
+        updated_at: new Date().toISOString()
       };
 
       todos.unshift(newTodo);
       input.value = '';
       saveLocal();
 
-      const { data, error } = await supabaseClient
-        .from('todos')
-        .insert([newTodo])
-        .select();
-
-      if (!error && data && data[0]) {
-        const idx = todos.findIndex(t => t.id === tempId);
-        if (idx !== -1) {
-          todos[idx].id = data[0].id;
-          saveLocal();
-        }
-      }
+      await supabaseClient.from('todos').upsert([newTodo]);
     }
 
     async function addSubtask(e, parentId) {
-      e.stopPropagation();
+      if (e) e.stopPropagation();
+      const parent = todos.find(t => t.id === parentId);
       const text = prompt("Nom de la sous-tâche :");
       if (!text || !text.trim()) return;
 
-      const parent = todos.find(t => t.id === parentId);
-      if (!parent) return;
-
-      if (!parent.subtasks) parent.subtasks = [];
       const newSub = {
         id: Date.now(),
         text: text.trim(),
         completed: false,
-        category: parent.category,
+        category: parent ? parent.category : 'Général',
         priority: 0,
         tags: [],
         notes: '',
         paused: false,
-        pauseMode: 'griser'
+        pauseMode: 'griser',
+        parent_id: parentId,
+        updated_at: new Date().toISOString()
       };
 
-      parent.subtasks.push(newSub);
+      todos.push(newSub);
       saveLocal();
-      await syncTaskToCloud(parent);
+
+      await supabaseClient.from('todos').upsert([newSub]);
     }
 
-    async function toggleTask(e, id, isSubtask = false, parentId = null) {
-      e.stopPropagation();
-      if (isSubtask) {
-        const parent = todos.find(t => t.id === parentId);
-        if (!parent) return;
-        const sub = parent.subtasks.find(s => s.id === id);
-        if (sub) sub.completed = !sub.completed;
-        saveLocal();
-        await syncTaskToCloud(parent);
-      } else {
-        const todo = todos.find(t => t.id === id);
-        if (!todo) return;
-        todo.completed = !todo.completed;
-        saveLocal();
-        await syncTaskToCloud(todo);
+    // --- COCHE ET VÉRIFICATION AUTO DES PARENTS ---
+    async function toggleTask(e, id) {
+      if (e) e.stopPropagation();
+      const task = todos.find(t => t.id === id);
+      if (!task) return;
+
+      const newStatus = !task.completed;
+      task.completed = newStatus;
+      task.updated_at = new Date().toISOString();
+
+      saveLocal();
+      await supabaseClient.from('todos').upsert([task]);
+
+      // Si la sous-tâche est cochée, vérifier si toutes les sous-tâches sœurs sont cochées pour cocher le parent
+      if (newStatus && task.parent_id) {
+        await checkAndCompleteParent(task.parent_id);
       }
     }
 
-    async function deleteTask(e, id, isSubtask = false, parentId = null) {
-      e.stopPropagation();
-      if (isSubtask) {
+    async function checkAndCompleteParent(parentId) {
+      if (!parentId) return;
+
+      const siblings = todos.filter(t => t.parent_id === parentId);
+      if (siblings.length === 0) return;
+
+      const allCompleted = siblings.every(s => s.completed);
+      if (allCompleted) {
         const parent = todos.find(t => t.id === parentId);
-        if (!parent) return;
-        parent.subtasks = parent.subtasks.filter(s => s.id !== id);
-        saveLocal();
-        await syncTaskToCloud(parent);
-      } else {
-        todos = todos.filter(t => t.id !== id);
-        saveLocal();
-        await supabaseClient.from('todos').delete().eq('id', id);
+        if (parent && !parent.completed) {
+          parent.completed = true;
+          parent.updated_at = new Date().toISOString();
+          saveLocal();
+          await supabaseClient.from('todos').upsert([parent]);
+
+          // Propagation récursive vers les niveaux supérieurs
+          if (parent.parent_id) {
+            await checkAndCompleteParent(parent.parent_id);
+          }
+        }
       }
     }
 
-    async function syncTaskToCloud(task) {
-      await supabaseClient
-        .from('todos')
-        .upsert([task]);
+    async function deleteTask(e, id) {
+      if (e) e.stopPropagation();
+      
+      // Supprime la tâche et toutes ses sous-tâches récursivement
+      const idsToDelete = [];
+      function collectIds(targetId) {
+        idsToDelete.push(targetId);
+        todos.filter(t => t.parent_id === targetId).forEach(child => collectIds(child.id));
+      }
+      collectIds(id);
+
+      todos = todos.filter(t => !idsToDelete.includes(t.id));
+      saveLocal();
+
+      for (const delId of idsToDelete) {
+        await supabaseClient.from('todos').delete().eq('id', delId);
+      }
     }
 
-    // --- LOGIQUE DE LA MODALE ---
-
-    function openModal(id, isSubtask = false, parentId = null) {
-      let item;
-      if (isSubtask) {
-        const parent = todos.find(t => t.id === parentId);
-        item = parent ? parent.subtasks.find(s => s.id === id) : null;
-      } else {
-        item = todos.find(t => t.id === id);
-      }
+    // --- GESTION DE LA MODALE ---
+    function openModal(id) {
+      const item = todos.find(t => t.id === id);
       if (!item) return;
 
       currentEditing = {
         id,
-        isSubtask,
-        parentId,
         selectedCategory: item.category || 'Général',
         selectedPriority: item.priority || 0
       };
 
-      document.getElementById('modal-heading').textContent = isSubtask ? 'Éditer la sous-tâche' : 'Éditer la tâche';
+      document.getElementById('modal-heading').textContent = item.parent_id ? 'Éditer la sous-tâche' : 'Éditer la tâche';
       document.getElementById('modal-title').value = item.text || '';
       document.getElementById('modal-tags').value = (item.tags || []).join(', ');
       document.getElementById('modal-notes').value = item.notes || '';
-      
+
       const pausedCb = document.getElementById('modal-paused');
       pausedCb.checked = !!item.paused;
-      
+
       const pauseModes = document.getElementsByName('pause-mode');
       pauseModes.forEach(r => r.checked = (r.value === (item.pauseMode || 'griser')));
-      
+
       togglePauseOptions();
       renderModalCategories();
       setModalPriority(item.priority || 0);
@@ -350,7 +370,9 @@
 
     function renderModalCategories() {
       const container = document.getElementById('modal-categories-container');
-      container.innerHTML = categories.map(cat => `
+      const catsToDisplay = categories.filter(c => c !== 'Tout');
+
+      container.innerHTML = catsToDisplay.map(cat => `
         <button type="button" onclick="selectModalCategory('${escapeHtml(cat)}')" 
           class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${currentEditing.selectedCategory === cat ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 text-slate-600 border-slate-200'}">
           ${escapeHtml(cat)}
@@ -374,7 +396,7 @@
         if (!categories.includes(clean)) {
           categories.push(clean);
           currentEditing.selectedCategory = clean;
-          saveLocal();
+          renderCategoryTabs();
           renderModalCategories();
         }
       }
@@ -402,10 +424,7 @@
 
     function getAllExistingTags() {
       const tagsSet = new Set();
-      todos.forEach(t => {
-        (t.tags || []).forEach(tag => tagsSet.add(tag));
-        (t.subtasks || []).forEach(s => (s.tags || []).forEach(tag => tagsSet.add(tag)));
-      });
+      todos.forEach(t => (t.tags || []).forEach(tag => tagsSet.add(tag)));
       return Array.from(tagsSet);
     }
 
@@ -452,42 +471,26 @@
       const tags = rawTags.split(',').map(t => t.trim()).filter(Boolean);
       const notes = document.getElementById('modal-notes').value.trim();
       const paused = document.getElementById('modal-paused').checked;
-      
+
       const pauseModes = document.getElementsByName('pause-mode');
       let pauseMode = 'griser';
       pauseModes.forEach(r => { if (r.checked) pauseMode = r.value; });
 
-      let parentTask;
-      if (currentEditing.isSubtask) {
-        parentTask = todos.find(t => t.id === currentEditing.parentId);
-        if (parentTask) {
-          const sub = parentTask.subtasks.find(s => s.id === currentEditing.id);
-          if (sub) {
-            sub.text = title;
-            sub.category = currentEditing.selectedCategory;
-            sub.priority = currentEditing.selectedPriority;
-            sub.tags = tags;
-            sub.notes = notes;
-            sub.paused = paused;
-            sub.pauseMode = pauseMode;
-          }
-        }
-      } else {
-        parentTask = todos.find(t => t.id === currentEditing.id);
-        if (parentTask) {
-          parentTask.text = title;
-          parentTask.category = currentEditing.selectedCategory;
-          parentTask.priority = currentEditing.selectedPriority;
-          parentTask.tags = tags;
-          parentTask.notes = notes;
-          parentTask.paused = paused;
-          parentTask.pauseMode = pauseMode;
-        }
-      }
+      const task = todos.find(t => t.id === currentEditing.id);
+      if (task) {
+        task.text = title;
+        task.category = currentEditing.selectedCategory;
+        task.priority = currentEditing.selectedPriority;
+        task.tags = tags;
+        task.notes = notes;
+        task.paused = paused;
+        task.pauseMode = pauseMode;
+        task.updated_at = new Date().toISOString();
 
-      saveLocal();
-      closeModal();
-      if (parentTask) await syncTaskToCloud(parentTask);
+        saveLocal();
+        closeModal();
+        await supabaseClient.from('todos').upsert([task]);
+      }
     }
 
     function toggleShowPaused() {
@@ -498,78 +501,69 @@
       render();
     }
 
-    // --- GLISSER-DÉPOSER DES SOUS-TÂCHES ---
-
-    function handleDragStart(e, parentId, index) {
-      dragSrcSubtask = { parentId, index };
-      e.target.classList.add('dragging');
-      e.dataTransfer.effectAllowed = 'move';
+    // --- RENDU UI DES ONGLETS & ARBORESCENCE ---
+    function renderCategoryTabs() {
+      const container = document.getElementById('category-tabs');
+      container.innerHTML = categories.map(cat => `
+        <button 
+          onclick="setCategory('${escapeHtml(cat)}')" 
+          class="px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${activeCategory === cat ? 'bg-slate-900 text-white border-slate-900 shadow-sm' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}"
+        >
+          ${escapeHtml(cat)}
+        </button>
+      `).join('');
     }
 
-    function handleDragOver(e) {
-      if (e.preventDefault) e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      return false;
+    function setCategory(cat) {
+      activeCategory = cat;
+      renderCategoryTabs();
+      render();
     }
 
-    async function handleDrop(e, parentId, targetIndex) {
-      e.stopPropagation();
-      if (!dragSrcSubtask || dragSrcSubtask.parentId !== parentId) return;
+    function renderTaskTree(parentId = null, level = 0) {
+      const items = todos.filter(t => {
+        if (parentId === null) {
+          if (t.parent_id !== null) return false;
+          if (activeCategory !== 'Tout' && t.category !== activeCategory) return false;
+        } else {
+          if (t.parent_id !== parentId) return false;
+        }
 
-      const parent = todos.find(t => t.id === parentId);
-      if (!parent || !parent.subtasks) return;
-
-      const movedItem = parent.subtasks.splice(dragSrcSubtask.index, 1)[0];
-      parent.subtasks.splice(targetIndex, 0, movedItem);
-
-      saveLocal();
-      await syncTaskToCloud(parent);
-    }
-
-    function handleDragEnd(e) {
-      e.target.classList.remove('dragging');
-      dragSrcSubtask = null;
-    }
-
-    // --- RENDU UI ---
-
-    function render() {
-      const listEl = document.getElementById('task-list');
-      const countEl = document.getElementById('task-count');
-      listEl.innerHTML = '';
-
-      const visibleTodos = todos.filter(t => {
         if (t.paused && t.pauseMode === 'masquer' && !showPaused) return false;
         return true;
       });
 
-      if (visibleTodos.length === 0) {
-        listEl.innerHTML = `<li class="text-center text-slate-400 text-sm py-8">Aucune tâche à afficher</li>`;
-      } else {
-        visibleTodos.forEach(todo => {
-          const isGriser = todo.paused && todo.pauseMode === 'griser';
-          const li = document.createElement('li');
-          
-          li.className = `rounded-2xl border transition-all p-3.5 ${todo.completed ? 'bg-slate-50 border-slate-100 opacity-60' : isGriser ? 'bg-slate-100/70 border-slate-200 opacity-50' : 'bg-white border-slate-200 shadow-sm'} ${todo.priority > 0 ? 'border-l-4' : ''}`;
-          
-          if (todo.priority === 1) li.style.borderLeftColor = '#94a3b8';
-          else if (todo.priority === 2) li.style.borderLeftColor = '#3b82f6';
-          else if (todo.priority === 3) li.style.borderLeftColor = '#f97316';
-          else if (todo.priority === 4) li.style.borderLeftColor = '#ef4444';
+      if (items.length === 0) return '';
 
-          li.onclick = () => openModal(todo.id, false);
+      return items.map(todo => {
+        const isGriser = todo.paused && todo.pauseMode === 'griser';
+        const childrenHTML = renderTaskTree(todo.id, level + 1);
 
-          li.innerHTML = `
-            <div class="flex items-start justify-between gap-3 cursor-pointer">
+        let prioBorder = '';
+        if (todo.priority === 1) prioBorder = 'border-l-4 border-l-slate-400';
+        else if (todo.priority === 2) prioBorder = 'border-l-4 border-l-blue-500';
+        else if (todo.priority === 3) prioBorder = 'border-l-4 border-l-orange-500';
+        else if (todo.priority === 4) prioBorder = 'border-l-4 border-l-red-500';
+
+        return `
+          <div class="${level > 0 ? 'ml-4 mt-2 pl-2 border-l-2 border-slate-200/70' : 'mt-2.5'}">
+            <div 
+              onclick="openModal(${todo.id})"
+              class="flex items-start justify-between gap-2.5 p-3 rounded-2xl border transition-all cursor-pointer ${
+                todo.completed ? 'bg-slate-50 border-slate-100 opacity-60' : 
+                isGriser ? 'bg-slate-100/70 border-slate-200 opacity-50' : 
+                'bg-white border-slate-200 shadow-sm hover:border-slate-300'
+              } ${prioBorder}"
+            >
               <input 
                 type="checkbox" 
                 ${todo.completed ? 'checked' : ''} 
                 class="w-5 h-5 accent-slate-900 rounded cursor-pointer mt-0.5"
                 onclick="toggleTask(event, ${todo.id})"
               >
-              
+
               <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 flex-wrap">
                   <span class="text-sm font-semibold ${todo.completed ? 'line-through text-slate-400' : 'text-slate-800'}">
                     ${escapeHtml(todo.text)}
                   </span>
@@ -585,49 +579,28 @@
               </div>
 
               <div class="flex items-center gap-1">
-                <button onclick="addSubtask(event, ${todo.id})" class="text-slate-400 hover:text-slate-800 font-bold px-2 py-1 text-base rounded-lg transition-colors" title="Ajouter une sous-tâche">+</button>
+                <button onclick="addSubtask(event, ${todo.id})" class="text-slate-400 hover:text-slate-900 font-bold px-2 py-1 text-base rounded-lg transition-colors" title="Ajouter une sous-tâche">+</button>
                 <button onclick="deleteTask(event, ${todo.id})" class="text-slate-400 hover:text-rose-500 font-bold px-2 py-1 text-base rounded-lg transition-colors" title="Supprimer">&times;</button>
               </div>
             </div>
 
-            <!-- Liste des sous-tâches -->
-            ${todo.subtasks && todo.subtasks.length > 0 ? `
-              <div class="mt-3 pt-2 border-t border-slate-100 ml-4 space-y-2">
-                ${todo.subtasks.filter(s => !(s.paused && s.pauseMode === 'masquer' && !showPaused)).map((sub, sIdx) => {
-                  const subGriser = sub.paused && sub.pauseMode === 'griser';
-                  return `
-                    <div 
-                      draggable="true" 
-                      ondragstart="handleDragStart(event, ${todo.id}, ${sIdx})"
-                      ondragover="handleDragOver(event)"
-                      ondrop="handleDrop(event, ${todo.id}, ${sIdx})"
-                      ondragend="handleDragEnd(event)"
-                      onclick="event.stopPropagation(); openModal(${sub.id}, true, ${todo.id})"
-                      class="flex items-start justify-between gap-2 p-2 rounded-xl bg-slate-50/80 hover:bg-slate-100 cursor-pointer text-xs border border-slate-200/60 ${sub.completed ? 'opacity-50' : subGriser ? 'opacity-40' : ''}"
-                    >
-                      <div class="flex items-center gap-2 flex-1 min-w-0">
-                        <span class="text-slate-300 cursor-grab hover:text-slate-500 font-bold text-sm">⋮⋮</span>
-                        <input 
-                          type="checkbox" 
-                          ${sub.completed ? 'checked' : ''} 
-                          class="w-4 h-4 accent-slate-900 rounded cursor-pointer"
-                          onclick="toggleTask(event, ${sub.id}, true, ${todo.id})"
-                        >
-                        <span class="${sub.completed ? 'line-through text-slate-400' : 'text-slate-700'} font-medium truncate">
-                          ${escapeHtml(sub.text)}
-                        </span>
-                        ${(sub.tags || []).map(t => `<span class="text-[9px] bg-slate-200 text-slate-600 px-1.5 py-0.2 rounded">#${escapeHtml(t)}</span>`).join('')}
-                      </div>
-                      <button onclick="deleteTask(event, ${sub.id}, true, ${todo.id})" class="text-slate-400 hover:text-rose-500 font-bold px-1">&times;</button>
-                    </div>
-                  `;
-                }).join('')}
-              </div>
-            ` : ''}
-          `;
+            <!-- Sous-tâches dépendantes -->
+            ${childrenHTML}
+          </div>
+        `;
+      }).join('');
+    }
 
-          listEl.appendChild(li);
-        });
+    function render() {
+      const treeContainer = document.getElementById('task-tree');
+      const countEl = document.getElementById('task-count');
+
+      const html = renderTaskTree(null, 0);
+
+      if (!html) {
+        treeContainer.innerHTML = `<p class="text-center text-slate-400 text-sm py-8">Aucune tâche dans cette catégorie</p>`;
+      } else {
+        treeContainer.innerHTML = html;
       }
 
       const activeCount = todos.filter(t => !t.completed).length;
@@ -641,7 +614,10 @@
       }[match]));
     }
 
+    // Initialisation
+    renderCategoryTabs();
     render();
+    initRealtime();
     syncCloud();
   </script>
 </body>
