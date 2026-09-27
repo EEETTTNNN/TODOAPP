@@ -1,29 +1,35 @@
-<!-- TODOAPP - Version 1.0.5 (avec Supabase) -->
+<!-- TODOAPP - Version 1.1.0 -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TODOAPP - v1.0.5</title>
+  <title>TODOAPP - v1.1.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body { -webkit-tap-highlight-color: transparent; }
+    .dragging { opacity: 0.4; }
   </style>
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans min-h-screen p-4 sm:p-8">
 
-  <div class="max-w-md mx-auto bg-white rounded-3xl shadow-sm border border-slate-200 p-6">
+  <div class="max-w-xl mx-auto bg-white rounded-3xl shadow-sm border border-slate-200 p-6">
     
     <!-- En-tête -->
     <header class="flex justify-between items-center mb-6">
       <div class="flex items-center gap-2">
         <h1 class="text-2xl font-extrabold text-slate-900">TODOAPP</h1>
-        <span class="text-xs font-semibold bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full">v1.0.5</span>
+        <span class="text-xs font-semibold bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full">v1.1.0</span>
       </div>
-      <button onclick="syncCloud()" class="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-600 text-xs font-semibold transition-colors flex items-center gap-1.5" title="Synchroniser">
-        <span id="sync-icon">🔄</span> Sync
-      </button>
+      <div class="flex items-center gap-2">
+        <button onclick="toggleShowPaused()" id="btn-show-paused" class="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-200 transition-colors">
+          Afficher masquées
+        </button>
+        <button onclick="syncCloud()" class="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-600 text-xs font-semibold transition-colors flex items-center gap-1.5" title="Synchroniser">
+          <span id="sync-icon">🔄</span>
+        </button>
+      </div>
     </header>
 
     <!-- Zone de Saisie -->
@@ -39,9 +45,9 @@
     </form>
 
     <!-- Liste des tâches -->
-    <ul id="task-list" class="space-y-2"></ul>
+    <ul id="task-list" class="space-y-3"></ul>
 
-    <!-- Compteur & Statut -->
+    <!-- Compteur -->
     <footer class="mt-6 pt-4 border-t border-slate-100 text-xs text-slate-400 flex justify-between items-center">
       <span id="task-count">0 tâche</span>
       <span id="sync-status" class="text-emerald-600 font-medium">● Connecté</span>
@@ -49,15 +55,103 @@
 
   </div>
 
+  <!-- MODALE D'ÉDITION / PARAMÉTRAGE -->
+  <div id="edit-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center p-4 z-50" onclick="closeModalOnOut(event)">
+    <div class="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto space-y-5" onclick="event.stopPropagation()">
+      
+      <div class="flex justify-between items-center border-b pb-3 border-slate-100">
+        <h3 class="font-extrabold text-lg text-slate-900" id="modal-heading">Éditer la tâche</h3>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-slate-700 text-2xl font-bold">&times;</button>
+      </div>
+
+      <!-- Titre -->
+      <div>
+        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Titre</label>
+        <textarea id="modal-title" rows="2" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 resize-none"></textarea>
+      </div>
+
+      <!-- Catégorie -->
+      <div>
+        <label class="block text-xs font-bold text-slate-500 uppercase mb-1.5">Catégorie</label>
+        <div class="flex flex-wrap gap-2 items-center" id="modal-categories-container"></div>
+      </div>
+
+      <!-- Priorité -->
+      <div>
+        <label class="block text-xs font-bold text-slate-500 uppercase mb-1.5">Priorité</label>
+        <div class="grid grid-cols-5 gap-1.5" id="modal-priority-container">
+          <button type="button" onclick="setModalPriority(0)" data-prio="0" class="prio-btn py-2 text-xs font-bold rounded-xl border border-slate-200 bg-slate-50 text-slate-600">Aucun</button>
+          <button type="button" onclick="setModalPriority(1)" data-prio="1" class="prio-btn py-2 text-xs font-bold rounded-xl border border-slate-200 bg-slate-50 text-slate-600">1</button>
+          <button type="button" onclick="setModalPriority(2)" data-prio="2" class="prio-btn py-2 text-xs font-bold rounded-xl border border-slate-200 bg-slate-50 text-slate-600">2</button>
+          <button type="button" onclick="setModalPriority(3)" data-prio="3" class="prio-btn py-2 text-xs font-bold rounded-xl border border-slate-200 bg-slate-50 text-slate-600">3</button>
+          <button type="button" onclick="setModalPriority(4)" data-prio="4" class="prio-btn py-2 text-xs font-bold rounded-xl border border-slate-200 bg-slate-50 text-slate-600">4</button>
+        </div>
+      </div>
+
+      <!-- Tags avec Autocomplétion -->
+      <div class="relative">
+        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Tags (séparés par des virgules)</label>
+        <input 
+          type="text" 
+          id="modal-tags" 
+          placeholder="ex: maison, urgent, course..." 
+          oninput="handleTagAutocomplete(event)" 
+          class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+        >
+        <ul id="tag-suggestions" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-20 max-h-32 overflow-y-auto"></ul>
+      </div>
+
+      <!-- Notes -->
+      <div>
+        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Notes</label>
+        <textarea id="modal-notes" rows="3" placeholder="Informations complémentaires, détails..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 resize-none"></textarea>
+      </div>
+
+      <!-- Mise en Pause -->
+      <div class="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+        <label class="flex items-center justify-between cursor-pointer">
+          <span class="text-xs font-bold text-slate-700 uppercase">Mise en pause</span>
+          <input type="checkbox" id="modal-paused" onchange="togglePauseOptions()" class="w-5 h-5 accent-slate-900 rounded">
+        </label>
+
+        <div id="pause-options" class="hidden pt-2 border-t border-slate-200 space-y-1.5">
+          <span class="text-[11px] font-semibold text-slate-500 block">Comportement lors de la pause :</span>
+          <div class="flex gap-4 text-xs font-medium text-slate-700">
+            <label class="flex items-center gap-1.5 cursor-pointer">
+              <input type="radio" name="pause-mode" value="griser" class="accent-slate-900">
+              Griser
+            </label>
+            <label class="flex items-center gap-1.5 cursor-pointer">
+              <input type="radio" name="pause-mode" value="masquer" class="accent-slate-900">
+              Masquer
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bouton Enregistrer -->
+      <button onclick="saveModal()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-2xl transition-all shadow-md">
+        Enregistrer
+      </button>
+
+    </div>
+  </div>
+
   <script>
     const SUPABASE_URL = "https://bwirwhcetlfwzqswbfwr.supabase.co";
     const SUPABASE_KEY = "sb_publishable_6f1T8ttm3Lc0yTSqsHUikA_XW5eo3X7";
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let todos = JSON.parse(localStorage.getItem('todoapp_v105') || '[]');
+    let todos = JSON.parse(localStorage.getItem('todoapp_v110') || localStorage.getItem('todoapp_v105') || '[]');
+    let categories = JSON.parse(localStorage.getItem('todoapp_cats') || '["Général", "Travail", "Maison", "Perso"]');
+    let showPaused = false;
+
+    let currentEditing = { id: null, isSubtask: false, parentId: null, selectedCategory: 'Général', selectedPriority: 0 };
+    let dragSrcSubtask = null;
 
     function saveLocal() {
-      localStorage.setItem('todoapp_v105', JSON.stringify(todos));
+      localStorage.setItem('todoapp_v110', JSON.stringify(todos));
+      localStorage.setItem('todoapp_cats', JSON.stringify(categories));
       render();
     }
 
@@ -65,7 +159,7 @@
       const syncIcon = document.getElementById('sync-icon');
       const syncStatus = document.getElementById('sync-status');
       if (syncIcon) syncIcon.classList.add('animate-spin');
-      
+
       try {
         const { data, error } = await supabaseClient
           .from('todos')
@@ -73,14 +167,23 @@
           .order('id', { ascending: false });
 
         if (!error && data) {
-          todos = data;
+          todos = data.map(item => ({
+            id: item.id,
+            text: item.text || '',
+            completed: !!item.completed,
+            category: item.category || 'Général',
+            priority: item.priority || 0,
+            tags: item.tags || [],
+            notes: item.notes || '',
+            paused: !!item.paused,
+            pauseMode: item.pauseMode || 'griser',
+            subtasks: item.subtasks || []
+          }));
           saveLocal();
           if (syncStatus) {
             syncStatus.textContent = "● Synchro OK";
             syncStatus.className = "text-emerald-600 font-medium";
           }
-        } else if (error) {
-          throw error;
         }
       } catch (err) {
         console.error("Erreur de synchro :", err);
@@ -103,83 +206,426 @@
       const newTodo = {
         id: tempId,
         text: text,
-        completed: false
+        completed: false,
+        category: 'Général',
+        priority: 0,
+        tags: [],
+        notes: '',
+        paused: false,
+        pauseMode: 'griser',
+        subtasks: []
       };
 
-      // 1. Mise à jour locale immédiate
       todos.unshift(newTodo);
       input.value = '';
       saveLocal();
 
-      // 2. Envoi vers Supabase
       const { data, error } = await supabaseClient
         .from('todos')
-        .insert([{ text: newTodo.text, completed: false }])
+        .insert([newTodo])
         .select();
 
       if (!error && data && data[0]) {
-        // Remplace l'ID temporaire par l'ID généré par Supabase
-        const index = todos.findIndex(t => t.id === tempId);
-        if (index !== -1) {
-          todos[index] = data[0];
+        const idx = todos.findIndex(t => t.id === tempId);
+        if (idx !== -1) {
+          todos[idx].id = data[0].id;
           saveLocal();
         }
       }
     }
 
-    async function toggleTask(id) {
-      const todo = todos.find(t => t.id === id);
-      if (!todo) return;
+    async function addSubtask(e, parentId) {
+      e.stopPropagation();
+      const text = prompt("Nom de la sous-tâche :");
+      if (!text || !text.trim()) return;
 
-      todo.completed = !todo.completed;
+      const parent = todos.find(t => t.id === parentId);
+      if (!parent) return;
+
+      if (!parent.subtasks) parent.subtasks = [];
+      const newSub = {
+        id: Date.now(),
+        text: text.trim(),
+        completed: false,
+        category: parent.category,
+        priority: 0,
+        tags: [],
+        notes: '',
+        paused: false,
+        pauseMode: 'griser'
+      };
+
+      parent.subtasks.push(newSub);
       saveLocal();
-
-      await supabaseClient
-        .from('todos')
-        .update({ completed: todo.completed })
-        .eq('id', id);
+      await syncTaskToCloud(parent);
     }
 
-    async function deleteTask(id) {
-      todos = todos.filter(t => t.id !== id);
-      saveLocal();
+    async function toggleTask(e, id, isSubtask = false, parentId = null) {
+      e.stopPropagation();
+      if (isSubtask) {
+        const parent = todos.find(t => t.id === parentId);
+        if (!parent) return;
+        const sub = parent.subtasks.find(s => s.id === id);
+        if (sub) sub.completed = !sub.completed;
+        saveLocal();
+        await syncTaskToCloud(parent);
+      } else {
+        const todo = todos.find(t => t.id === id);
+        if (!todo) return;
+        todo.completed = !todo.completed;
+        saveLocal();
+        await syncTaskToCloud(todo);
+      }
+    }
 
+    async function deleteTask(e, id, isSubtask = false, parentId = null) {
+      e.stopPropagation();
+      if (isSubtask) {
+        const parent = todos.find(t => t.id === parentId);
+        if (!parent) return;
+        parent.subtasks = parent.subtasks.filter(s => s.id !== id);
+        saveLocal();
+        await syncTaskToCloud(parent);
+      } else {
+        todos = todos.filter(t => t.id !== id);
+        saveLocal();
+        await supabaseClient.from('todos').delete().eq('id', id);
+      }
+    }
+
+    async function syncTaskToCloud(task) {
       await supabaseClient
         .from('todos')
-        .delete()
-        .eq('id', id);
+        .upsert([task]);
     }
+
+    // --- LOGIQUE DE LA MODALE ---
+
+    function openModal(id, isSubtask = false, parentId = null) {
+      let item;
+      if (isSubtask) {
+        const parent = todos.find(t => t.id === parentId);
+        item = parent ? parent.subtasks.find(s => s.id === id) : null;
+      } else {
+        item = todos.find(t => t.id === id);
+      }
+      if (!item) return;
+
+      currentEditing = {
+        id,
+        isSubtask,
+        parentId,
+        selectedCategory: item.category || 'Général',
+        selectedPriority: item.priority || 0
+      };
+
+      document.getElementById('modal-heading').textContent = isSubtask ? 'Éditer la sous-tâche' : 'Éditer la tâche';
+      document.getElementById('modal-title').value = item.text || '';
+      document.getElementById('modal-tags').value = (item.tags || []).join(', ');
+      document.getElementById('modal-notes').value = item.notes || '';
+      
+      const pausedCb = document.getElementById('modal-paused');
+      pausedCb.checked = !!item.paused;
+      
+      const pauseModes = document.getElementsByName('pause-mode');
+      pauseModes.forEach(r => r.checked = (r.value === (item.pauseMode || 'griser')));
+      
+      togglePauseOptions();
+      renderModalCategories();
+      setModalPriority(item.priority || 0);
+
+      document.getElementById('edit-modal').classList.remove('hidden');
+      document.getElementById('edit-modal').classList.add('flex');
+    }
+
+    function closeModal() {
+      document.getElementById('edit-modal').classList.add('hidden');
+      document.getElementById('edit-modal').classList.remove('flex');
+      document.getElementById('tag-suggestions').classList.add('hidden');
+    }
+
+    function closeModalOnOut(e) {
+      if (e.target.id === 'edit-modal') closeModal();
+    }
+
+    function renderModalCategories() {
+      const container = document.getElementById('modal-categories-container');
+      container.innerHTML = categories.map(cat => `
+        <button type="button" onclick="selectModalCategory('${escapeHtml(cat)}')" 
+          class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${currentEditing.selectedCategory === cat ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 text-slate-600 border-slate-200'}">
+          ${escapeHtml(cat)}
+        </button>
+      `).join('') + `
+        <button type="button" onclick="addNewCategory()" class="px-2.5 py-1.5 bg-slate-200 text-slate-700 hover:bg-slate-300 rounded-xl text-xs font-bold">
+          +
+        </button>
+      `;
+    }
+
+    function selectModalCategory(cat) {
+      currentEditing.selectedCategory = cat;
+      renderModalCategories();
+    }
+
+    function addNewCategory() {
+      const name = prompt("Nom de la nouvelle catégorie :");
+      if (name && name.trim()) {
+        const clean = name.trim();
+        if (!categories.includes(clean)) {
+          categories.push(clean);
+          currentEditing.selectedCategory = clean;
+          saveLocal();
+          renderModalCategories();
+        }
+      }
+    }
+
+    function setModalPriority(prio) {
+      currentEditing.selectedPriority = prio;
+      const btns = document.querySelectorAll('.prio-btn');
+      btns.forEach(btn => {
+        const p = parseInt(btn.getAttribute('data-prio'));
+        if (p === prio) {
+          btn.className = "prio-btn py-2 text-xs font-bold rounded-xl border bg-slate-900 text-white border-slate-900 shadow-sm";
+        } else {
+          btn.className = "prio-btn py-2 text-xs font-bold rounded-xl border border-slate-200 bg-slate-50 text-slate-600";
+        }
+      });
+    }
+
+    function togglePauseOptions() {
+      const isPaused = document.getElementById('modal-paused').checked;
+      const opt = document.getElementById('pause-options');
+      if (isPaused) opt.classList.remove('hidden');
+      else opt.classList.add('hidden');
+    }
+
+    function getAllExistingTags() {
+      const tagsSet = new Set();
+      todos.forEach(t => {
+        (t.tags || []).forEach(tag => tagsSet.add(tag));
+        (t.subtasks || []).forEach(s => (s.tags || []).forEach(tag => tagsSet.add(tag)));
+      });
+      return Array.from(tagsSet);
+    }
+
+    function handleTagAutocomplete(e) {
+      const val = e.target.value;
+      const parts = val.split(',');
+      const currentPart = parts[parts.length - 1].trim().toLowerCase();
+      const suggestionsList = document.getElementById('tag-suggestions');
+
+      if (!currentPart) {
+        suggestionsList.classList.add('hidden');
+        return;
+      }
+
+      const allTags = getAllExistingTags();
+      const filtered = allTags.filter(t => t.toLowerCase().includes(currentPart) && !parts.slice(0, -1).map(p => p.trim()).includes(t));
+
+      if (filtered.length > 0) {
+        suggestionsList.innerHTML = filtered.map(tag => `
+          <li class="px-3 py-2 text-xs font-medium hover:bg-slate-100 cursor-pointer border-b border-slate-50 last:border-0" onclick="insertTagSuggestion('${escapeHtml(tag)}')">
+            #${escapeHtml(tag)}
+          </li>
+        `).join('');
+        suggestionsList.classList.remove('hidden');
+      } else {
+        suggestionsList.classList.add('hidden');
+      }
+    }
+
+    function insertTagSuggestion(tag) {
+      const input = document.getElementById('modal-tags');
+      const parts = input.value.split(',');
+      parts[parts.length - 1] = ' ' + tag;
+      input.value = parts.join(', ') + ', ';
+      document.getElementById('tag-suggestions').classList.add('hidden');
+      input.focus();
+    }
+
+    async function saveModal() {
+      const title = document.getElementById('modal-title').value.trim();
+      if (!title) return;
+
+      const rawTags = document.getElementById('modal-tags').value;
+      const tags = rawTags.split(',').map(t => t.trim()).filter(Boolean);
+      const notes = document.getElementById('modal-notes').value.trim();
+      const paused = document.getElementById('modal-paused').checked;
+      
+      const pauseModes = document.getElementsByName('pause-mode');
+      let pauseMode = 'griser';
+      pauseModes.forEach(r => { if (r.checked) pauseMode = r.value; });
+
+      let parentTask;
+      if (currentEditing.isSubtask) {
+        parentTask = todos.find(t => t.id === currentEditing.parentId);
+        if (parentTask) {
+          const sub = parentTask.subtasks.find(s => s.id === currentEditing.id);
+          if (sub) {
+            sub.text = title;
+            sub.category = currentEditing.selectedCategory;
+            sub.priority = currentEditing.selectedPriority;
+            sub.tags = tags;
+            sub.notes = notes;
+            sub.paused = paused;
+            sub.pauseMode = pauseMode;
+          }
+        }
+      } else {
+        parentTask = todos.find(t => t.id === currentEditing.id);
+        if (parentTask) {
+          parentTask.text = title;
+          parentTask.category = currentEditing.selectedCategory;
+          parentTask.priority = currentEditing.selectedPriority;
+          parentTask.tags = tags;
+          parentTask.notes = notes;
+          parentTask.paused = paused;
+          parentTask.pauseMode = pauseMode;
+        }
+      }
+
+      saveLocal();
+      closeModal();
+      if (parentTask) await syncTaskToCloud(parentTask);
+    }
+
+    function toggleShowPaused() {
+      showPaused = !showPaused;
+      const btn = document.getElementById('btn-show-paused');
+      btn.textContent = showPaused ? 'Masquer en pause' : 'Afficher masquées';
+      btn.className = showPaused ? 'px-3 py-1.5 bg-slate-900 text-white rounded-xl text-xs font-semibold' : 'px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-200';
+      render();
+    }
+
+    // --- GLISSER-DÉPOSER DES SOUS-TÂCHES ---
+
+    function handleDragStart(e, parentId, index) {
+      dragSrcSubtask = { parentId, index };
+      e.target.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    }
+
+    function handleDragOver(e) {
+      if (e.preventDefault) e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      return false;
+    }
+
+    async function handleDrop(e, parentId, targetIndex) {
+      e.stopPropagation();
+      if (!dragSrcSubtask || dragSrcSubtask.parentId !== parentId) return;
+
+      const parent = todos.find(t => t.id === parentId);
+      if (!parent || !parent.subtasks) return;
+
+      const movedItem = parent.subtasks.splice(dragSrcSubtask.index, 1)[0];
+      parent.subtasks.splice(targetIndex, 0, movedItem);
+
+      saveLocal();
+      await syncTaskToCloud(parent);
+    }
+
+    function handleDragEnd(e) {
+      e.target.classList.remove('dragging');
+      dragSrcSubtask = null;
+    }
+
+    // --- RENDU UI ---
 
     function render() {
       const listEl = document.getElementById('task-list');
       const countEl = document.getElementById('task-count');
       listEl.innerHTML = '';
 
-      if (todos.length === 0) {
-        listEl.innerHTML = `<li class="text-center text-slate-400 text-sm py-8">Aucune tâche pour le moment</li>`;
+      const visibleTodos = todos.filter(t => {
+        if (t.paused && t.pauseMode === 'masquer' && !showPaused) return false;
+        return true;
+      });
+
+      if (visibleTodos.length === 0) {
+        listEl.innerHTML = `<li class="text-center text-slate-400 text-sm py-8">Aucune tâche à afficher</li>`;
       } else {
-        todos.forEach(todo => {
+        visibleTodos.forEach(todo => {
+          const isGriser = todo.paused && todo.pauseMode === 'griser';
           const li = document.createElement('li');
-          li.className = `flex items-center justify-between p-3 rounded-2xl border transition-all ${todo.completed ? 'bg-slate-50 border-slate-100 opacity-60' : 'bg-white border-slate-200'}`;
           
+          li.className = `rounded-2xl border transition-all p-3.5 ${todo.completed ? 'bg-slate-50 border-slate-100 opacity-60' : isGriser ? 'bg-slate-100/70 border-slate-200 opacity-50' : 'bg-white border-slate-200 shadow-sm'} ${todo.priority > 0 ? 'border-l-4' : ''}`;
+          
+          if (todo.priority === 1) li.style.borderLeftColor = '#94a3b8';
+          else if (todo.priority === 2) li.style.borderLeftColor = '#3b82f6';
+          else if (todo.priority === 3) li.style.borderLeftColor = '#f97316';
+          else if (todo.priority === 4) li.style.borderLeftColor = '#ef4444';
+
+          li.onclick = () => openModal(todo.id, false);
+
           li.innerHTML = `
-            <div class="flex items-center gap-3 flex-1 min-w-0 mr-2 cursor-pointer" onclick="toggleTask(${todo.id})">
+            <div class="flex items-start justify-between gap-3 cursor-pointer">
               <input 
                 type="checkbox" 
                 ${todo.completed ? 'checked' : ''} 
-                class="w-5 h-5 accent-slate-900 rounded cursor-pointer"
-                onclick="event.stopPropagation(); toggleTask(${todo.id})"
+                class="w-5 h-5 accent-slate-900 rounded cursor-pointer mt-0.5"
+                onclick="toggleTask(event, ${todo.id})"
               >
-              <span class="text-sm font-medium ${todo.completed ? 'line-through text-slate-400' : 'text-slate-800'} truncate">
-                ${escapeHtml(todo.text)}
-              </span>
+              
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-semibold ${todo.completed ? 'line-through text-slate-400' : 'text-slate-800'}">
+                    ${escapeHtml(todo.text)}
+                  </span>
+                  ${todo.paused ? `<span class="text-[10px] font-bold px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-md">PAUSE</span>` : ''}
+                </div>
+
+                <div class="flex flex-wrap gap-1 mt-1">
+                  <span class="text-[10px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md">${escapeHtml(todo.category)}</span>
+                  ${(todo.tags || []).map(tag => `<span class="text-[10px] font-bold bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-md">#${escapeHtml(tag)}</span>`).join('')}
+                </div>
+
+                ${todo.notes ? `<p class="text-xs text-slate-500 mt-1.5 italic bg-slate-50 p-2 rounded-xl border border-slate-100">${escapeHtml(todo.notes)}</p>` : ''}
+              </div>
+
+              <div class="flex items-center gap-1">
+                <button onclick="addSubtask(event, ${todo.id})" class="text-slate-400 hover:text-slate-800 font-bold px-2 py-1 text-base rounded-lg transition-colors" title="Ajouter une sous-tâche">+</button>
+                <button onclick="deleteTask(event, ${todo.id})" class="text-slate-400 hover:text-rose-500 font-bold px-2 py-1 text-base rounded-lg transition-colors" title="Supprimer">&times;</button>
+              </div>
             </div>
-            <button 
-              onclick="deleteTask(${todo.id})" 
-              class="text-slate-400 hover:text-rose-500 font-bold px-2 py-1 text-sm rounded-lg transition-colors"
-              title="Supprimer"
-            >&times;</button>
+
+            <!-- Liste des sous-tâches -->
+            ${todo.subtasks && todo.subtasks.length > 0 ? `
+              <div class="mt-3 pt-2 border-t border-slate-100 ml-4 space-y-2">
+                ${todo.subtasks.filter(s => !(s.paused && s.pauseMode === 'masquer' && !showPaused)).map((sub, sIdx) => {
+                  const subGriser = sub.paused && sub.pauseMode === 'griser';
+                  return `
+                    <div 
+                      draggable="true" 
+                      ondragstart="handleDragStart(event, ${todo.id}, ${sIdx})"
+                      ondragover="handleDragOver(event)"
+                      ondrop="handleDrop(event, ${todo.id}, ${sIdx})"
+                      ondragend="handleDragEnd(event)"
+                      onclick="event.stopPropagation(); openModal(${sub.id}, true, ${todo.id})"
+                      class="flex items-start justify-between gap-2 p-2 rounded-xl bg-slate-50/80 hover:bg-slate-100 cursor-pointer text-xs border border-slate-200/60 ${sub.completed ? 'opacity-50' : subGriser ? 'opacity-40' : ''}"
+                    >
+                      <div class="flex items-center gap-2 flex-1 min-w-0">
+                        <span class="text-slate-300 cursor-grab hover:text-slate-500 font-bold text-sm">⋮⋮</span>
+                        <input 
+                          type="checkbox" 
+                          ${sub.completed ? 'checked' : ''} 
+                          class="w-4 h-4 accent-slate-900 rounded cursor-pointer"
+                          onclick="toggleTask(event, ${sub.id}, true, ${todo.id})"
+                        >
+                        <span class="${sub.completed ? 'line-through text-slate-400' : 'text-slate-700'} font-medium truncate">
+                          ${escapeHtml(sub.text)}
+                        </span>
+                        ${(sub.tags || []).map(t => `<span class="text-[9px] bg-slate-200 text-slate-600 px-1.5 py-0.2 rounded">#${escapeHtml(t)}</span>`).join('')}
+                      </div>
+                      <button onclick="deleteTask(event, ${sub.id}, true, ${todo.id})" class="text-slate-400 hover:text-rose-500 font-bold px-1">&times;</button>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            ` : ''}
           `;
+
           listEl.appendChild(li);
         });
       }
@@ -189,12 +635,12 @@
     }
 
     function escapeHtml(str) {
-      return str.replace(/[&<>"']/g, match => ({
+      if (!str) return '';
+      return String(str).replace(/[&<>"']/g, match => ({
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
       }[match]));
     }
 
-    // Chargement initial
     render();
     syncCloud();
   </script>
