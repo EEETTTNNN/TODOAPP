@@ -1,16 +1,20 @@
-<!-- TODOAPP - Version 1.1.2 -->
+<!-- TODOAPP - Version 1.1.3 | Total Lignes : 653 -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TODOAPP - v1.1.2</title>
+  <title>TODOAPP - v1.1.3</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Iceberg&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body { -webkit-tap-highlight-color: transparent; }
     .scrollbar-none::-webkit-scrollbar { display: none; }
     .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+    .font-iceberg { font-family: 'Iceberg', cursive, sans-serif; }
   </style>
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans min-h-screen p-4 sm:p-8">
@@ -21,8 +25,8 @@
     <header class="mb-6">
       <div class="flex justify-between items-center mb-4">
         <div class="flex items-center gap-2">
-          <h1 class="text-2xl font-extrabold text-slate-900">TODOAPP</h1>
-          <span class="text-xs font-semibold bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full">v1.1.2</span>
+          <h1 class="text-3xl font-extrabold text-slate-900 font-iceberg tracking-wider">TODOAPP</h1>
+          <span class="text-xs font-semibold bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full">v1.1.3</span>
         </div>
         <div class="flex items-center gap-2">
           <button onclick="toggleShowPaused()" id="btn-show-paused" class="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-200 transition-colors">
@@ -148,7 +152,7 @@
     const SUPABASE_KEY = "sb_publishable_6f1T8ttm3Lc0yTSqsHUikA_XW5eo3X7";
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let todos = JSON.parse(localStorage.getItem('todoapp_v112') || localStorage.getItem('todoapp_v111') || '[]');
+    let todos = JSON.parse(localStorage.getItem('todoapp_v113') || localStorage.getItem('todoapp_v112') || localStorage.getItem('todoapp_v111') || '[]');
     let categories = ["Tout", "Général", "Maison", "Jardin", "Voiture", "Aster", "Aimé"];
     let activeCategory = "Tout";
     let showPaused = false;
@@ -156,7 +160,7 @@
     let currentEditing = { id: null, selectedCategory: 'Général', selectedPriority: 0 };
 
     function saveLocal() {
-      localStorage.setItem('todoapp_v112', JSON.stringify(todos));
+      localStorage.setItem('todoapp_v113', JSON.stringify(todos));
       render();
     }
 
@@ -279,20 +283,18 @@
       await supabaseClient.from('todos').upsert(updatedTasks);
     }
 
-    // --- LOGIQUE DES COCHES / DÉCOCHES EN CASCADE ---
-    
-    // Application récursive du statut vers les enfants (cascade descendante)
-    function setTaskAndChildrenStatus(taskId, completed, updatedList) {
-      const task = todos.find(t => t.id === taskId);
-      if (!task) return;
+    // --- LOGIQUE DE DÉCOCHAGE EN CASCADE UNIQUEMENT ---
 
-      task.completed = completed;
-      task.updated_at = new Date().toISOString();
-      if (!updatedList.some(u => u.id === task.id)) updatedList.push(task);
-
+    // Décochage récursif vers le bas (si parent décoché -> tous ses enfants se décochent)
+    function uncompleteChildren(taskId, updatedList) {
       const children = todos.filter(t => t.parent_id === taskId);
       for (const child of children) {
-        setTaskAndChildrenStatus(child.id, completed, updatedList);
+        if (child.completed) {
+          child.completed = false;
+          child.updated_at = new Date().toISOString();
+          if (!updatedList.some(u => u.id === child.id)) updatedList.push(child);
+        }
+        uncompleteChildren(child.id, updatedList);
       }
     }
 
@@ -311,48 +313,27 @@
       }
     }
 
-    // Cochage récursif vers le haut (si TOUTES les sous-tâches sœurs sont cochées -> parent coché)
-    function checkAndCompleteAncestors(parentId, updatedList) {
-      if (!parentId) return;
-      const siblings = todos.filter(t => t.parent_id === parentId);
-      if (siblings.length === 0) return;
-
-      const allCompleted = siblings.every(s => s.completed);
-      if (allCompleted) {
-        const parent = todos.find(t => t.id === parentId);
-        if (parent && !parent.completed) {
-          parent.completed = true;
-          parent.updated_at = new Date().toISOString();
-          if (!updatedList.some(u => u.id === parent.id)) updatedList.push(parent);
-
-          if (parent.parent_id) {
-            checkAndCompleteAncestors(parent.parent_id, updatedList);
-          }
-        }
-      }
-    }
-
     async function toggleTask(e, id) {
       if (e) e.stopPropagation();
       const task = todos.find(t => t.id === id);
       if (!task) return;
 
       const newStatus = !task.completed;
-      const updatedTasks = [];
+      task.completed = newStatus;
+      task.updated_at = new Date().toISOString();
+      const updatedTasks = [task];
 
-      // 1. Cascade descendante : appliquer à la tâche et à ses enfants
-      setTaskAndChildrenStatus(id, newStatus, updatedTasks);
-
-      // 2. Cascade ascendante : vérifier et ajuster la lignée des parents
-      if (newStatus) {
-        if (task.parent_id) checkAndCompleteAncestors(task.parent_id, updatedTasks);
-      } else {
-        if (task.parent_id) uncompleteAncestors(task.parent_id, updatedTasks);
+      if (!newStatus) {
+        // DÉCOCHAGE : On décoche les enfants et les parents
+        uncompleteChildren(id, updatedTasks);
+        if (task.parent_id) {
+          uncompleteAncestors(task.parent_id, updatedTasks);
+        }
       }
+      // Note : Le cochage en cascade a été annulé selon la demande.
 
       saveLocal();
 
-      // Sauvegarder l'intégralité des tâches modifiées dans Supabase
       if (updatedTasks.length > 0) {
         await supabaseClient.from('todos').upsert(updatedTasks);
       }
@@ -568,82 +549,82 @@
       render();
     }
 
-    function renderTaskTree(parentId = null, level = 0) {
-      const items = todos.filter(t => {
-        if (parentId === null) {
-          if (t.parent_id !== null) return false;
-          if (activeCategory !== 'Tout' && t.category !== activeCategory) return false;
-        } else {
-          if (t.parent_id !== parentId) return false;
-        }
+    function renderNodeAndChildren(todo, level = 0) {
+      if (todo.paused && todo.pauseMode === 'masquer' && !showPaused) return '';
 
-        if (t.paused && t.pauseMode === 'masquer' && !showPaused) return false;
-        return true;
-      });
+      const children = todos.filter(t => t.parent_id === todo.id);
+      const childrenHTML = children.map(child => renderNodeAndChildren(child, level + 1)).join('');
 
-      if (items.length === 0) return '';
+      const isGriser = todo.paused && todo.pauseMode === 'griser';
 
-      return items.map(todo => {
-        const isGriser = todo.paused && todo.pauseMode === 'griser';
-        const childrenHTML = renderTaskTree(todo.id, level + 1);
+      let prioBorder = '';
+      if (todo.priority === 1) prioBorder = 'border-l-4 border-l-slate-400';
+      else if (todo.priority === 2) prioBorder = 'border-l-4 border-l-blue-500';
+      else if (todo.priority === 3) prioBorder = 'border-l-4 border-l-orange-500';
+      else if (todo.priority === 4) prioBorder = 'border-l-4 border-l-red-500';
 
-        let prioBorder = '';
-        if (todo.priority === 1) prioBorder = 'border-l-4 border-l-slate-400';
-        else if (todo.priority === 2) prioBorder = 'border-l-4 border-l-blue-500';
-        else if (todo.priority === 3) prioBorder = 'border-l-4 border-l-orange-500';
-        else if (todo.priority === 4) prioBorder = 'border-l-4 border-l-red-500';
-
-        return `
-          <div class="${level > 0 ? 'ml-4 mt-2 pl-2 border-l-2 border-slate-200/70' : 'mt-2.5'}">
-            <div 
-              onclick="openModal(${todo.id})"
-              class="flex items-start justify-between gap-2.5 p-3 rounded-2xl border transition-all cursor-pointer ${
-                todo.completed ? 'bg-slate-50 border-slate-100 opacity-60' : 
-                isGriser ? 'bg-slate-100/70 border-slate-200 opacity-50' : 
-                'bg-white border-slate-200 shadow-sm hover:border-slate-300'
-              } ${prioBorder}"
+      return `
+        <div class="${level > 0 ? 'ml-4 mt-2 pl-2 border-l-2 border-slate-200/70' : 'mt-2.5'}">
+          <div 
+            onclick="openModal(${todo.id})"
+            class="flex items-start justify-between gap-2.5 p-3 rounded-2xl border transition-all cursor-pointer ${
+              todo.completed ? 'bg-slate-50 border-slate-100 opacity-60' : 
+              isGriser ? 'bg-slate-100/70 border-slate-200 opacity-50' : 
+              'bg-white border-slate-200 shadow-sm hover:border-slate-300'
+            } ${prioBorder}"
+          >
+            <input 
+              type="checkbox" 
+              ${todo.completed ? 'checked' : ''} 
+              class="w-5 h-5 accent-slate-900 rounded cursor-pointer mt-0.5"
+              onclick="toggleTask(event, ${todo.id})"
             >
-              <input 
-                type="checkbox" 
-                ${todo.completed ? 'checked' : ''} 
-                class="w-5 h-5 accent-slate-900 rounded cursor-pointer mt-0.5"
-                onclick="toggleTask(event, ${todo.id})"
-              >
 
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2 flex-wrap">
-                  <span class="text-sm font-semibold ${todo.completed ? 'line-through text-slate-400' : 'text-slate-800'}">
-                    ${escapeHtml(todo.text)}
-                  </span>
-                  ${todo.paused ? `<span class="text-[10px] font-bold px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-md">PAUSE</span>` : ''}
-                </div>
-
-                <div class="flex flex-wrap gap-1 mt-1">
-                  <span class="text-[10px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md">${escapeHtml(todo.category)}</span>
-                  ${(todo.tags || []).map(tag => `<span class="text-[10px] font-bold bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-md">#${escapeHtml(tag)}</span>`).join('')}
-                </div>
-
-                ${todo.notes ? `<p class="text-xs text-slate-500 mt-1.5 italic bg-slate-50 p-2 rounded-xl border border-slate-100">${escapeHtml(todo.notes)}</p>` : ''}
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-sm font-semibold ${todo.completed ? 'line-through text-slate-400' : 'text-slate-800'}">
+                  ${escapeHtml(todo.text)}
+                </span>
+                ${todo.paused ? `<span class="text-[10px] font-bold px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-md">PAUSE</span>` : ''}
               </div>
 
-              <div class="flex items-center gap-1">
-                <button onclick="addSubtask(event, ${todo.id})" class="text-slate-400 hover:text-slate-900 font-bold px-2 py-1 text-base rounded-lg transition-colors" title="Ajouter une sous-tâche">+</button>
-                <button onclick="deleteTask(event, ${todo.id})" class="text-slate-400 hover:text-rose-500 font-bold px-2 py-1 text-base rounded-lg transition-colors" title="Supprimer">&times;</button>
+              <div class="flex flex-wrap gap-1 mt-1">
+                <span class="text-[10px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md">${escapeHtml(todo.category)}</span>
+                ${(todo.tags || []).map(tag => `<span class="text-[10px] font-bold bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-md">#${escapeHtml(tag)}</span>`).join('')}
               </div>
+
+              ${todo.notes ? `<p class="text-xs text-slate-500 mt-1.5 italic bg-slate-50 p-2 rounded-xl border border-slate-100">${escapeHtml(todo.notes)}</p>` : ''}
             </div>
 
-            <!-- Sous-tâches dépendantes -->
-            ${childrenHTML}
+            <div class="flex items-center gap-1">
+              <button onclick="addSubtask(event, ${todo.id})" class="text-slate-400 hover:text-slate-900 font-bold px-2 py-1 text-base rounded-lg transition-colors" title="Ajouter une sous-tâche">+</button>
+              <button onclick="deleteTask(event, ${todo.id})" class="text-slate-400 hover:text-rose-500 font-bold px-2 py-1 text-base rounded-lg transition-colors" title="Supprimer">&times;</button>
+            </div>
           </div>
-        `;
-      }).join('');
+
+          <!-- Sous-tâches dépendantes -->
+          ${childrenHTML}
+        </div>
+      `;
+    }
+
+    function renderTaskTree() {
+      let rootItems = [];
+      if (activeCategory === 'Tout') {
+        rootItems = todos.filter(t => t.parent_id === null);
+      } else {
+        rootItems = todos.filter(t => t.category === activeCategory);
+      }
+
+      if (rootItems.length === 0) return '';
+      return rootItems.map(item => renderNodeAndChildren(item, 0)).join('');
     }
 
     function render() {
       const treeContainer = document.getElementById('task-tree');
       const countEl = document.getElementById('task-count');
 
-      const html = renderTaskTree(null, 0);
+      const html = renderTaskTree();
 
       if (!html) {
         treeContainer.innerHTML = `<p class="text-center text-slate-400 text-sm py-8">Aucune tâche dans cette catégorie</p>`;
