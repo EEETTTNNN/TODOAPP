@@ -1,10 +1,10 @@
-<!-- TODOAPP - Version 1.1.5 - 793 lignes -->
+<!-- TODOAPP - Version 1.1.6 - 815 lignes -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>TODOAPP - v1.1.5</title>
+  <title>TODOAPP - v1.1.6</title>
   
   <!-- Configuration PWA -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14,37 +14,48 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    body { -webkit-tap-highlight-color: transparent; }
+    body { 
+      -webkit-tap-highlight-color: transparent; 
+      padding-top: max(1rem, env(safe-area-inset-top));
+      padding-bottom: max(1rem, env(safe-area-inset-bottom));
+      padding-left: max(1rem, env(safe-area-inset-left));
+      padding-right: max(1rem, env(safe-area-inset-right));
+    }
     .scrollbar-none::-webkit-scrollbar { display: none; }
     .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
 </head>
 <body class="bg-white text-slate-800 font-sans min-h-screen">
 
-  <div class="max-w-2xl mx-auto p-4 sm:p-6 min-h-screen flex flex-col justify-between">
+  <div class="max-w-2xl mx-auto min-h-screen flex flex-col justify-between">
     
     <div>
       <!-- En-tête -->
       <header class="mb-6">
-        <div class="flex justify-between items-center mb-4">
-          <div class="flex items-center gap-2">
+        <div class="flex justify-between items-center mb-4 gap-2">
+          
+          <!-- Titre + Pastille Synchro + Version -->
+          <div class="flex items-baseline gap-2">
             <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">TODOAPP</h1>
-            <span class="text-xs font-semibold bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full">v1.1.5</span>
+            <div class="flex flex-col items-start justify-center">
+              <span id="sync-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block mb-0.5" title="Synchro fonctionnelle"></span>
+              <span class="text-xs text-slate-400 font-medium">v1.1.6</span>
+            </div>
           </div>
-          <div class="flex items-center gap-2">
-            <button onclick="toggleShowPaused()" id="btn-show-paused" class="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-200 transition-colors">
-              Afficher masquées
+
+          <!-- Boutons d'action (Synchro & Réglages) -->
+          <div class="flex items-center gap-2 shrink-0">
+            <button onclick="syncCloud()" class="p-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-600 text-sm font-semibold transition-colors flex items-center justify-center" title="Synchroniser">
+              <span id="sync-icon" class="inline-block">🔄</span>
             </button>
-            <button onclick="syncCloud()" class="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-600 text-xs font-semibold transition-colors flex items-center justify-center" title="Synchroniser">
-              <span id="sync-icon">🔄</span>
-            </button>
-            <button onclick="openSettingsModal()" class="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-600 text-xs font-semibold transition-colors flex items-center justify-center" title="Réglages">
+            <button onclick="openSettingsModal()" class="p-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-600 text-sm font-semibold transition-colors flex items-center justify-center" title="Réglages">
               <span>⚙️</span>
             </button>
           </div>
+
         </div>
 
-        <!-- Onglets de Catégories -->
+        <!-- Onglets de Catégories (avec "Masquées" toujours tout à gauche) -->
         <div class="flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-slate-100 scrollbar-none" id="category-tabs"></div>
       </header>
 
@@ -67,7 +78,7 @@
     <!-- Pied de page -->
     <footer class="mt-8 pt-4 border-t border-slate-100 text-xs text-slate-400 flex justify-between items-center pb-6">
       <span id="task-count">0 tâche</span>
-      <span id="sync-status" class="text-emerald-600 font-medium">● Connecté</span>
+      <span id="sync-status" class="text-emerald-600 font-medium">● Synchro Temps Réel</span>
     </footer>
 
   </div>
@@ -159,34 +170,26 @@
     <div class="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl border border-slate-100 space-y-5" onclick="event.stopPropagation()">
       
       <div class="flex justify-between items-center border-b pb-3 border-slate-100">
-        <h3 class="font-extrabold text-lg text-slate-900">Réglages PWA & Application</h3>
+        <h3 class="font-extrabold text-lg text-slate-900">Réglages</h3>
         <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-slate-700 text-2xl font-bold">&times;</button>
       </div>
 
-      <div class="space-y-4">
-        <div class="flex justify-between items-center p-3 bg-slate-50 rounded-2xl border border-slate-200">
-          <div>
-            <div class="text-xs font-bold text-slate-800">Version de l'application</div>
-            <div class="text-[11px] text-slate-500">v1.1.5 (Cache: todoapp_v115)</div>
-          </div>
-          <button onclick="forceAppUpdate()" class="px-3 py-1.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-colors">
-            Forcer MaJ
-          </button>
+      <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-200">
+        <div>
+          <div class="text-xs font-bold text-slate-800">Version de l'application</div>
+          <div class="text-[11px] text-slate-500">v1.1.6 (Cache: todoapp_v116)</div>
         </div>
-        
-        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-200 text-xs text-slate-600 space-y-1">
-          <p class="font-bold text-slate-800">Options PWA actives :</p>
-          <p>• <b>Option A :</b> Invalidation immédiate du cache PWA (<code class="bg-slate-200 px-1 rounded">skipWaiting & clients.claim</code>).</p>
-          <p>• <b>Option B :</b> Auto-nettoyage des anciens caches au démarrage.</p>
-        </div>
+        <button onclick="forceAppUpdate()" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-colors shadow-sm">
+          Forcer MaJ
+        </button>
       </div>
 
     </div>
   </div>
 
   <script>
-    // --- OPTION A & B : SERVICE WORKER ET GESTION DU CACHE PWA ---
-    const CACHE_NAME = 'todoapp_v115';
+    // --- SERVICE WORKER ET GESTION DU CACHE PWA ---
+    const CACHE_NAME = 'todoapp_v116';
 
     if ('serviceWorker' in navigator) {
       const swCode = `
@@ -242,15 +245,14 @@
     const SUPABASE_KEY = "sb_publishable_6f1T8ttm3Lc0yTSqsHUikA_XW5eo3X7";
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let todos = JSON.parse(localStorage.getItem('todoapp_v115') || localStorage.getItem('todoapp_v114') || localStorage.getItem('todoapp_v113') || '[]');
-    let categories = ["Tout", "Général", "Maison", "Jardin", "Voiture", "Aster", "Aimé"];
+    let todos = JSON.parse(localStorage.getItem('todoapp_v116') || localStorage.getItem('todoapp_v115') || localStorage.getItem('todoapp_v114') || '[]');
+    let categories = ["Masquées", "Tout", "Général", "Maison", "Jardin", "Voiture", "Aster", "Aimé"];
     let activeCategory = "Tout";
-    let showPaused = false;
 
     let currentEditing = { id: null, selectedCategory: 'Général', selectedPriority: 0 };
 
     function saveLocal() {
-      localStorage.setItem('todoapp_v115', JSON.stringify(todos));
+      localStorage.setItem('todoapp_v116', JSON.stringify(todos));
       render();
     }
 
@@ -272,6 +274,8 @@
     async function syncCloud() {
       const syncIcon = document.getElementById('sync-icon');
       const syncStatus = document.getElementById('sync-status');
+      const syncDot = document.getElementById('sync-dot');
+
       if (syncIcon) syncIcon.classList.add('animate-spin');
 
       try {
@@ -301,12 +305,18 @@
             syncStatus.textContent = "● Synchro Temps Réel";
             syncStatus.className = "text-emerald-600 font-medium";
           }
+          if (syncDot) {
+            syncDot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block mb-0.5";
+          }
         }
       } catch (err) {
         console.error("Erreur de synchro :", err);
         if (syncStatus) {
           syncStatus.textContent = "● Hors-ligne";
           syncStatus.className = "text-amber-600 font-medium";
+        }
+        if (syncDot) {
+          syncDot.className = "w-2.5 h-2.5 rounded-full bg-amber-500 inline-block mb-0.5";
         }
       } finally {
         if (syncIcon) syncIcon.classList.remove('animate-spin');
@@ -320,11 +330,13 @@
       const text = input.value.trim();
       if (!text) return;
 
+      const targetCat = (activeCategory === 'Tout' || activeCategory === 'Masquées') ? 'Général' : activeCategory;
+
       const newTodo = {
         id: Date.now(),
         text: text,
         completed: false,
-        category: activeCategory === 'Tout' ? 'Général' : activeCategory,
+        category: targetCat,
         priority: 0,
         tags: [],
         notes: '',
@@ -348,7 +360,6 @@
       const text = prompt("Nom de la sous-tâche :");
       if (!text || !text.trim()) return;
 
-      // Déplier le parent si sous-tâche ajoutée
       if (parent) parent.collapsed = false;
 
       const newSub = {
@@ -391,7 +402,7 @@
       await supabaseClient.from('todos').upsert([task]);
     }
 
-    // --- LOGIQUE DE DÉCOCHAGE EN CASCADE (UNIQUEMENT LE DÉCOCHAGE) ---
+    // --- LOGIQUE DE DÉCOCHAGE EN CASCADE ---
     function uncheckDescendants(taskId, updatedList) {
       const children = todos.filter(t => t.parent_id === taskId);
       for (const child of children) {
@@ -429,7 +440,6 @@
       task.updated_at = new Date().toISOString();
       updatedTasks.push(task);
 
-      // Si on DÉCOCHE : cascade descendante (enfants) + ascendante (parents)
       if (newStatus === false) {
         uncheckDescendants(id, updatedTasks);
         if (task.parent_id) uncheckAncestors(task.parent_id, updatedTasks);
@@ -517,7 +527,7 @@
 
     function renderModalCategories() {
       const container = document.getElementById('modal-categories-container');
-      const catsToDisplay = categories.filter(c => c !== 'Tout');
+      const catsToDisplay = categories.filter(c => c !== 'Tout' && c !== 'Masquées');
 
       container.innerHTML = catsToDisplay.map(cat => `
         <button type="button" onclick="selectModalCategory('${escapeHtml(cat)}')" 
@@ -640,18 +650,14 @@
       }
     }
 
-    function toggleShowPaused() {
-      showPaused = !showPaused;
-      const btn = document.getElementById('btn-show-paused');
-      btn.textContent = showPaused ? 'Masquer en pause' : 'Afficher masquées';
-      btn.className = showPaused ? 'px-3 py-1.5 bg-slate-900 text-white rounded-xl text-xs font-semibold' : 'px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-200';
-      render();
-    }
-
     // --- RENDU UI DES ONGLETS & ARBORESCENCE ---
     function renderCategoryTabs() {
       const container = document.getElementById('category-tabs');
-      container.innerHTML = categories.map(cat => `
+      
+      // Assurer que 'Masquées' est toujours en premier
+      let orderedCategories = ['Masquées', ...categories.filter(c => c !== 'Masquées')];
+      
+      container.innerHTML = orderedCategories.map(cat => `
         <button 
           onclick="setCategory('${escapeHtml(cat)}')" 
           class="px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${activeCategory === cat ? 'bg-slate-900 text-white border-slate-900 shadow-sm' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}"
@@ -677,6 +683,18 @@
 
     function renderTaskTree(parentId = null, level = 0) {
       const items = todos.filter(t => {
+        // En mode 'Masquées', on n'affiche que les tâches qui sont en pause
+        if (activeCategory === 'Masquées') {
+          if (level === 0) {
+            return t.paused && t.parent_id === null;
+          } else {
+            return t.parent_id === parentId;
+          }
+        }
+
+        // Dans les autres modes, on masque les tâches en pause (car elles vont dans l'onglet Masquées)
+        if (t.paused) return false;
+
         if (level === 0) {
           if (activeCategory === 'Tout') {
             if (t.parent_id !== null) return false;
@@ -688,7 +706,6 @@
           if (t.parent_id !== parentId) return false;
         }
 
-        if (t.paused && t.pauseMode === 'masquer' && !showPaused) return false;
         return true;
       });
 
@@ -707,6 +724,11 @@
         else if (todo.priority === 2) prioBorder = 'border-l-4 border-l-blue-500';
         else if (todo.priority === 3) prioBorder = 'border-l-4 border-l-orange-500';
         else if (todo.priority === 4) prioBorder = 'border-l-4 border-l-red-500';
+
+        // Icônes SVG propres pour flèches déplier/plier (bien dessinées et non écrasées)
+        const arrowSvg = isCollapsed 
+          ? `<svg class="w-4 h-4 text-slate-500 fill-current" viewBox="0 0 20 20"><path d="M6 4l10 6-10 6V4z"/></svg>`
+          : `<svg class="w-4 h-4 text-slate-500 fill-current" viewBox="0 0 20 20"><path d="M4 6l6 10 6-10H4z"/></svg>`;
 
         return `
           <div class="${level > 0 ? 'ml-4 mt-2 pl-2 border-l-2 border-slate-200/70' : 'mt-2.5'}">
@@ -742,10 +764,10 @@
                 ${todo.notes ? `<p class="text-xs text-slate-500 mt-1.5 italic bg-slate-50 p-2 rounded-xl border border-slate-100">${escapeHtml(todo.notes)}</p>` : ''}
               </div>
 
-              <div class="flex items-center gap-1">
+              <div class="flex items-center gap-1 shrink-0">
                 ${hasChildren ? `
-                  <button onclick="toggleCollapse(event, ${todo.id})" class="text-slate-400 hover:text-slate-900 font-bold px-1.5 py-1 text-xs rounded-lg transition-colors" title="${isCollapsed ? 'Déplier' : 'Plier'}">
-                    ${isCollapsed ? '►' : '▼'}
+                  <button onclick="toggleCollapse(event, ${todo.id})" class="p-1 text-slate-400 hover:text-slate-900 rounded-lg transition-colors flex items-center justify-center shrink-0" title="${isCollapsed ? 'Déplier' : 'Plier'}">
+                    ${arrowSvg}
                   </button>
                 ` : ''}
                 <button onclick="addSubtask(event, ${todo.id})" class="text-slate-400 hover:text-slate-900 font-bold px-2 py-1 text-base rounded-lg transition-colors" title="Ajouter une sous-tâche">+</button>
