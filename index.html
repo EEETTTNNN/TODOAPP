@@ -1,10 +1,10 @@
-<!-- TODOAPP - Version 1.1.6 - 815 lignes -->
+<!-- TODOAPP - Version 1.1.7 - 815 lignes -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>TODOAPP - v1.1.6</title>
+  <title>TODOAPP - v1.1.7</title>
   
   <!-- Configuration PWA -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -16,8 +16,8 @@
   <style>
     body { 
       -webkit-tap-highlight-color: transparent; 
-      padding-top: max(1rem, env(safe-area-inset-top));
-      padding-bottom: max(1rem, env(safe-area-inset-bottom));
+      padding-top: max(0.75rem, env(safe-area-inset-top));
+      padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
       padding-left: max(1rem, env(safe-area-inset-left));
       padding-right: max(1rem, env(safe-area-inset-right));
     }
@@ -31,44 +31,42 @@
     
     <div>
       <!-- En-tête -->
-      <header class="mb-6">
-        <div class="flex justify-between items-center mb-4 gap-2">
+      <header class="mb-4">
+        <div class="flex justify-between items-center mb-3 gap-2">
           
-          <!-- Titre + Pastille Synchro + Version -->
-          <div class="flex items-baseline gap-2">
-            <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">TODOAPP</h1>
-            <div class="flex flex-col items-start justify-center">
-              <span id="sync-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block mb-0.5" title="Synchro fonctionnelle"></span>
-              <span class="text-xs text-slate-400 font-medium">v1.1.6</span>
-            </div>
+          <!-- Titre + Pastille Synchro + Version (Alignés sur la même ligne) -->
+          <div class="flex items-center gap-2">
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">TODOAPP</h1>
+            <span id="sync-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0" title="Synchro fonctionnelle"></span>
+            <span class="text-xs text-slate-400 font-medium">v1.1.7</span>
           </div>
 
-          <!-- Boutons d'action (Synchro & Réglages) -->
-          <div class="flex items-center gap-2 shrink-0">
-            <button onclick="syncCloud()" class="p-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-600 text-sm font-semibold transition-colors flex items-center justify-center" title="Synchroniser">
-              <span id="sync-icon" class="inline-block">🔄</span>
+          <!-- Boutons d'action (Carré gris réduit) -->
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button onclick="syncCloud()" class="w-8 h-8 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 text-xs font-semibold transition-colors flex items-center justify-center" title="Synchroniser">
+              <span id="sync-icon" class="inline-block leading-none">🔄</span>
             </button>
-            <button onclick="openSettingsModal()" class="p-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-600 text-sm font-semibold transition-colors flex items-center justify-center" title="Réglages">
-              <span>⚙️</span>
+            <button onclick="openSettingsModal()" class="w-8 h-8 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 text-xs font-semibold transition-colors flex items-center justify-center" title="Réglages">
+              <span class="leading-none">⚙️</span>
             </button>
           </div>
 
         </div>
 
-        <!-- Onglets de Catégories (avec "Masquées" toujours tout à gauche) -->
+        <!-- Onglets de Catégories ("Masquées" toujours tout à droite) -->
         <div class="flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-slate-100 scrollbar-none" id="category-tabs"></div>
       </header>
 
-      <!-- Zone de Saisie -->
-      <form onsubmit="addTask(event)" class="flex gap-2 mb-6">
+      <!-- Zone de Saisie (Hauteur réduite similaire aux onglets) -->
+      <form onsubmit="addTask(event)" class="flex gap-1.5 mb-4">
         <input 
           type="text" 
           id="task-input" 
           placeholder="Ajouter une tâche..." 
-          class="flex-1 bg-slate-50 border border-slate-300 rounded-2xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-slate-900"
+          class="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-slate-900"
           required
         >
-        <button type="submit" class="bg-slate-900 text-white rounded-2xl px-5 font-bold text-xl hover:bg-slate-800 transition-colors">+</button>
+        <button type="submit" class="bg-slate-900 text-white rounded-xl px-3 py-1.5 font-bold text-sm hover:bg-slate-800 transition-colors">+</button>
       </form>
 
       <!-- Arborescence des tâches -->
@@ -177,7 +175,7 @@
       <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-200">
         <div>
           <div class="text-xs font-bold text-slate-800">Version de l'application</div>
-          <div class="text-[11px] text-slate-500">v1.1.6 (Cache: todoapp_v116)</div>
+          <div class="text-[11px] text-slate-500">v1.1.7 (Cache: todoapp_v117)</div>
         </div>
         <button onclick="forceAppUpdate()" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-colors shadow-sm">
           Forcer MaJ
@@ -189,7 +187,7 @@
 
   <script>
     // --- SERVICE WORKER ET GESTION DU CACHE PWA ---
-    const CACHE_NAME = 'todoapp_v116';
+    const CACHE_NAME = 'todoapp_v117';
 
     if ('serviceWorker' in navigator) {
       const swCode = `
@@ -245,14 +243,14 @@
     const SUPABASE_KEY = "sb_publishable_6f1T8ttm3Lc0yTSqsHUikA_XW5eo3X7";
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let todos = JSON.parse(localStorage.getItem('todoapp_v116') || localStorage.getItem('todoapp_v115') || localStorage.getItem('todoapp_v114') || '[]');
-    let categories = ["Masquées", "Tout", "Général", "Maison", "Jardin", "Voiture", "Aster", "Aimé"];
+    let todos = JSON.parse(localStorage.getItem('todoapp_v117') || localStorage.getItem('todoapp_v116') || localStorage.getItem('todoapp_v115') || '[]');
+    let categories = ["Tout", "Général", "Maison", "Jardin", "Voiture", "Aster", "Aimé", "Masquées"];
     let activeCategory = "Tout";
 
     let currentEditing = { id: null, selectedCategory: 'Général', selectedPriority: 0 };
 
     function saveLocal() {
-      localStorage.setItem('todoapp_v116', JSON.stringify(todos));
+      localStorage.setItem('todoapp_v117', JSON.stringify(todos));
       render();
     }
 
@@ -306,7 +304,7 @@
             syncStatus.className = "text-emerald-600 font-medium";
           }
           if (syncDot) {
-            syncDot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block mb-0.5";
+            syncDot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0";
           }
         }
       } catch (err) {
@@ -316,7 +314,7 @@
           syncStatus.className = "text-amber-600 font-medium";
         }
         if (syncDot) {
-          syncDot.className = "w-2.5 h-2.5 rounded-full bg-amber-500 inline-block mb-0.5";
+          syncDot.className = "w-2.5 h-2.5 rounded-full bg-amber-500 inline-block shrink-0";
         }
       } finally {
         if (syncIcon) syncIcon.classList.remove('animate-spin');
@@ -551,7 +549,8 @@
       if (name && name.trim()) {
         const clean = name.trim();
         if (!categories.includes(clean)) {
-          categories.push(clean);
+          // Insérer la nouvelle catégorie avant 'Masquées' (qui reste en dernier)
+          categories.splice(categories.length - 1, 0, clean);
           currentEditing.selectedCategory = clean;
           renderCategoryTabs();
           renderModalCategories();
@@ -654,8 +653,9 @@
     function renderCategoryTabs() {
       const container = document.getElementById('category-tabs');
       
-      // Assurer que 'Masquées' est toujours en premier
-      let orderedCategories = ['Masquées', ...categories.filter(c => c !== 'Masquées')];
+      // Assurer que 'Masquées' est TOUJOURS à la fin (à droite)
+      let otherCategories = categories.filter(c => c !== 'Masquées');
+      let orderedCategories = [...otherCategories, 'Masquées'];
       
       container.innerHTML = orderedCategories.map(cat => `
         <button 
@@ -725,7 +725,7 @@
         else if (todo.priority === 3) prioBorder = 'border-l-4 border-l-orange-500';
         else if (todo.priority === 4) prioBorder = 'border-l-4 border-l-red-500';
 
-        // Icônes SVG propres pour flèches déplier/plier (bien dessinées et non écrasées)
+        // Icônes SVG propres pour flèches déplier/plier
         const arrowSvg = isCollapsed 
           ? `<svg class="w-4 h-4 text-slate-500 fill-current" viewBox="0 0 20 20"><path d="M6 4l10 6-10 6V4z"/></svg>`
           : `<svg class="w-4 h-4 text-slate-500 fill-current" viewBox="0 0 20 20"><path d="M4 6l6 10 6-10H4z"/></svg>`;
