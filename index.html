@@ -1,10 +1,16 @@
-<!-- TODOAPP - Version 1.1.4 - 691 lignes -->
+<!-- TODOAPP - Version 1.1.5 - 793 lignes -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TODOAPP - v1.1.4</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>TODOAPP - v1.1.5</title>
+  
+  <!-- Configuration PWA -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="theme-color" content="#ffffff">
+  
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
@@ -23,7 +29,7 @@
         <div class="flex justify-between items-center mb-4">
           <div class="flex items-center gap-2">
             <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">TODOAPP</h1>
-            <span class="text-xs font-semibold bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full">v1.1.4</span>
+            <span class="text-xs font-semibold bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full">v1.1.5</span>
           </div>
           <div class="flex items-center gap-2">
             <button onclick="toggleShowPaused()" id="btn-show-paused" class="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-200 transition-colors">
@@ -153,23 +159,90 @@
     <div class="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl border border-slate-100 space-y-5" onclick="event.stopPropagation()">
       
       <div class="flex justify-between items-center border-b pb-3 border-slate-100">
-        <h3 class="font-extrabold text-lg text-slate-900">Réglages</h3>
+        <h3 class="font-extrabold text-lg text-slate-900">Réglages PWA & Application</h3>
         <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-slate-700 text-2xl font-bold">&times;</button>
       </div>
 
-      <div class="py-4 text-center text-slate-500 text-sm italic">
-        Aucun réglage pour le moment.
+      <div class="space-y-4">
+        <div class="flex justify-between items-center p-3 bg-slate-50 rounded-2xl border border-slate-200">
+          <div>
+            <div class="text-xs font-bold text-slate-800">Version de l'application</div>
+            <div class="text-[11px] text-slate-500">v1.1.5 (Cache: todoapp_v115)</div>
+          </div>
+          <button onclick="forceAppUpdate()" class="px-3 py-1.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-colors">
+            Forcer MaJ
+          </button>
+        </div>
+        
+        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-200 text-xs text-slate-600 space-y-1">
+          <p class="font-bold text-slate-800">Options PWA actives :</p>
+          <p>• <b>Option A :</b> Invalidation immédiate du cache PWA (<code class="bg-slate-200 px-1 rounded">skipWaiting & clients.claim</code>).</p>
+          <p>• <b>Option B :</b> Auto-nettoyage des anciens caches au démarrage.</p>
+        </div>
       </div>
 
     </div>
   </div>
 
   <script>
+    // --- OPTION A & B : SERVICE WORKER ET GESTION DU CACHE PWA ---
+    const CACHE_NAME = 'todoapp_v115';
+
+    if ('serviceWorker' in navigator) {
+      const swCode = `
+        const CACHE_NAME = '${CACHE_NAME}';
+        self.addEventListener('install', (event) => {
+          self.skipWaiting();
+        });
+        self.addEventListener('activate', (event) => {
+          event.waitUntil(
+            caches.keys().then((keys) => {
+              return Promise.all(
+                keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
+              );
+            }).then(() => self.clients.claim())
+          );
+        });
+        self.addEventListener('fetch', (event) => {
+          event.respondWith(
+            fetch(event.request).catch(() => caches.match(event.request))
+          );
+        });
+      `;
+
+      const blob = new Blob([swCode], { type: 'application/javascript' });
+      const swUrl = URL.createObjectURL(blob);
+
+      navigator.serviceWorker.register(swUrl).then((reg) => {
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          if (newWorker) {
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                window.location.reload();
+              }
+            });
+          }
+        });
+      }).catch(err => console.log('SW registration bypass:', err));
+    }
+
+    function forceAppUpdate() {
+      if ('caches' in window) {
+        caches.keys().then(names => {
+          for (let name of names) caches.delete(name);
+        });
+      }
+      localStorage.removeItem('todoapp_cache_version');
+      window.location.reload(true);
+    }
+
+    // --- BASE DE DONNÉES SUPABASE & DONNÉES LOCALES ---
     const SUPABASE_URL = "https://bwirwhcetlfwzqswbfwr.supabase.co";
     const SUPABASE_KEY = "sb_publishable_6f1T8ttm3Lc0yTSqsHUikA_XW5eo3X7";
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let todos = JSON.parse(localStorage.getItem('todoapp_v114') || localStorage.getItem('todoapp_v113') || localStorage.getItem('todoapp_v112') || '[]');
+    let todos = JSON.parse(localStorage.getItem('todoapp_v115') || localStorage.getItem('todoapp_v114') || localStorage.getItem('todoapp_v113') || '[]');
     let categories = ["Tout", "Général", "Maison", "Jardin", "Voiture", "Aster", "Aimé"];
     let activeCategory = "Tout";
     let showPaused = false;
@@ -177,7 +250,7 @@
     let currentEditing = { id: null, selectedCategory: 'Général', selectedPriority: 0 };
 
     function saveLocal() {
-      localStorage.setItem('todoapp_v114', JSON.stringify(todos));
+      localStorage.setItem('todoapp_v115', JSON.stringify(todos));
       render();
     }
 
@@ -218,6 +291,7 @@
             notes: item.notes || '',
             paused: !!item.paused,
             pauseMode: item.pauseMode || 'griser',
+            collapsed: !!item.collapsed,
             parent_id: item.parent_id ? Number(item.parent_id) : null,
             updated_at: item.updated_at || new Date().toISOString()
           }));
@@ -256,6 +330,7 @@
         notes: '',
         paused: false,
         pauseMode: 'griser',
+        collapsed: false,
         parent_id: null,
         updated_at: new Date().toISOString()
       };
@@ -273,6 +348,9 @@
       const text = prompt("Nom de la sous-tâche :");
       if (!text || !text.trim()) return;
 
+      // Déplier le parent si sous-tâche ajoutée
+      if (parent) parent.collapsed = false;
+
       const newSub = {
         id: Date.now(),
         text: text.trim(),
@@ -283,6 +361,7 @@
         notes: '',
         paused: false,
         pauseMode: 'griser',
+        collapsed: false,
         parent_id: parentId,
         updated_at: new Date().toISOString()
       };
@@ -290,12 +369,26 @@
       todos.push(newSub);
 
       const updatedTasks = [newSub];
+      if (parent) updatedTasks.push(parent);
       if (parent && parent.completed) {
         uncheckAncestors(parentId, updatedTasks);
       }
 
       saveLocal();
       await supabaseClient.from('todos').upsert(updatedTasks);
+    }
+
+    // --- DEPLIER / PLIER LES SOUS-TACHES ---
+    async function toggleCollapse(e, id) {
+      if (e) e.stopPropagation();
+      const task = todos.find(t => t.id === id);
+      if (!task) return;
+
+      task.collapsed = !task.collapsed;
+      task.updated_at = new Date().toISOString();
+
+      saveLocal();
+      await supabaseClient.from('todos').upsert([task]);
     }
 
     // --- LOGIQUE DE DÉCOCHAGE EN CASCADE (UNIQUEMENT LE DÉCOCHAGE) ---
@@ -589,7 +682,6 @@
             if (t.parent_id !== null) return false;
           } else {
             if (t.category !== activeCategory) return false;
-            // Ne pas afficher en racine si un parent/ancêtre possède déjà cette catégorie
             if (hasAncestorWithCategory(t.parent_id, activeCategory)) return false;
           }
         } else {
@@ -604,7 +696,11 @@
 
       return items.map(todo => {
         const isGriser = todo.paused && todo.pauseMode === 'griser';
-        const childrenHTML = renderTaskTree(todo.id, level + 1);
+        const children = todos.filter(c => c.parent_id === todo.id);
+        const hasChildren = children.length > 0;
+        const isCollapsed = !!todo.collapsed;
+
+        const childrenHTML = (!isCollapsed && hasChildren) ? renderTaskTree(todo.id, level + 1) : '';
 
         let prioBorder = '';
         if (todo.priority === 1) prioBorder = 'border-l-4 border-l-slate-400';
@@ -635,6 +731,7 @@
                     ${escapeHtml(todo.text)}
                   </span>
                   ${todo.paused ? `<span class="text-[10px] font-bold px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-md">PAUSE</span>` : ''}
+                  ${hasChildren && isCollapsed ? `<span class="text-[10px] font-bold px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded-md">+${children.length} masquée${children.length > 1 ? 's' : ''}</span>` : ''}
                 </div>
 
                 <div class="flex flex-wrap gap-1 mt-1">
@@ -646,6 +743,11 @@
               </div>
 
               <div class="flex items-center gap-1">
+                ${hasChildren ? `
+                  <button onclick="toggleCollapse(event, ${todo.id})" class="text-slate-400 hover:text-slate-900 font-bold px-1.5 py-1 text-xs rounded-lg transition-colors" title="${isCollapsed ? 'Déplier' : 'Plier'}">
+                    ${isCollapsed ? '►' : '▼'}
+                  </button>
+                ` : ''}
                 <button onclick="addSubtask(event, ${todo.id})" class="text-slate-400 hover:text-slate-900 font-bold px-2 py-1 text-base rounded-lg transition-colors" title="Ajouter une sous-tâche">+</button>
                 <button onclick="deleteTask(event, ${todo.id})" class="text-slate-400 hover:text-rose-500 font-bold px-2 py-1 text-base rounded-lg transition-colors" title="Supprimer">&times;</button>
               </div>
