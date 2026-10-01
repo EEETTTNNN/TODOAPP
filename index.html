@@ -1,10 +1,10 @@
-<!-- TODOAPP - Version 1.1.9 - 883 lignes -->
+<!-- TODOAPP - Version 1.2.0 - 874 lignes -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>TODOAPP - v1.1.9</title>
+  <title>TODOAPP - v1.2.0</title>
   
   <!-- Configuration PWA -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
           <div class="flex items-center gap-2">
             <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">TODOAPP</h1>
             <span id="sync-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0" title="Synchro fonctionnelle"></span>
-            <span class="text-xs text-slate-400 font-medium">v1.1.9</span>
+            <span class="text-xs text-slate-400 font-medium">v1.2.0</span>
           </div>
 
           <!-- Boutons d'action -->
@@ -175,7 +175,7 @@
       <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-200">
         <div>
           <div class="text-xs font-bold text-slate-800">Version de l'application</div>
-          <div class="text-[11px] text-slate-500">v1.1.9 (Cache: todoapp_v119)</div>
+          <div class="text-[11px] text-slate-500">v1.2.0 (Cache: todoapp_v120)</div>
         </div>
         <button onclick="forceAppUpdate()" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-colors shadow-sm">
           Forcer MaJ
@@ -187,7 +187,7 @@
 
   <script>
     // --- SERVICE WORKER ET GESTION DU CACHE PWA ---
-    const CACHE_NAME = 'todoapp_v119';
+    const CACHE_NAME = 'todoapp_v120';
 
     if ('serviceWorker' in navigator) {
       const swCode = `
@@ -238,9 +238,30 @@
       window.location.reload(true);
     }
 
-    // Helper pour nettoyer l'objet avant envoi à Supabase (évite les erreurs 400 sur colonnes inexistantes)
-    function toDbPayload(todo) {
-      const payload = {
+    // --- BASE DE DONNÉES SUPABASE & DONNÉES LOCALES ---
+    const SUPABASE_URL = "https://bwirwhcetlfwzqswbfwr.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_6f1T8ttm3Lc0yTSqsHUikA_XW5eo3X7";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let todos = JSON.parse(localStorage.getItem('todoapp_v120') || localStorage.getItem('todoapp_v119') || localStorage.getItem('todoapp_v118') || '[]');
+    let categories = ["Tout", "Général", "Maison", "Jardin", "Voiture", "Aster", "Aimé", "Masquées"];
+    let activeCategory = "Tout";
+
+    let currentEditing = { id: null, selectedCategory: 'Général', selectedPriority: 0 };
+
+    function saveLocal() {
+      localStorage.setItem('todoapp_v120', JSON.stringify(todos));
+      render();
+    }
+
+    // Générateur d'identifiant temporaire safe pour PostgreSQL (32-bit integer)
+    function generateSafeId() {
+      return Math.floor((Date.now() % 1000000000)) + Math.floor(Math.random() * 1000);
+    }
+
+    // Filtre pour envoyer STRICTEMENT les colonnes existantes dans Supabase
+    function cleanDbPayload(todo) {
+      const p = {
         text: todo.text || '',
         completed: !!todo.completed,
         category: todo.category || 'Général',
@@ -248,32 +269,40 @@
         tags: Array.isArray(todo.tags) ? todo.tags : [],
         notes: todo.notes || '',
         paused: !!todo.paused,
-        parent_id: todo.parent_id ? Number(todo.parent_id) : null,
-        updated_at: todo.updated_at || new Date().toISOString()
+        parent_id: todo.parent_id ? Number(todo.parent_id) : null
       };
-      if (todo.id) payload.id = Number(todo.id);
-      return payload;
+      if (todo.id) p.id = Number(todo.id);
+      return p;
     }
 
-    // Générateur d'identifiant compatible entier 32-bits PostgreSQL
-    function generateSafeId() {
-      return Math.floor((Date.now() % 1000000000)) + Math.floor(Math.random() * 1000);
+    // Mise à jour locale sécurisée de l'ID d'une tâche et de ses sous-tâches
+    function updateTaskIdLocally(oldId, newId) {
+      if (oldId === newId) return;
+      todos.forEach(t => {
+        if (t.id === oldId) t.id = newId;
+        if (t.parent_id === oldId) t.parent_id = newId;
+      });
+      saveLocal();
     }
 
-    // --- BASE DE DONNÉES SUPABASE & DONNÉES LOCALES ---
-    const SUPABASE_URL = "https://bwirwhcetlfwzqswbfwr.supabase.co";
-    const SUPABASE_KEY = "sb_publishable_6f1T8ttm3Lc0yTSqsHUikA_XW5eo3X7";
-    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-    let todos = JSON.parse(localStorage.getItem('todoapp_v119') || localStorage.getItem('todoapp_v118') || localStorage.getItem('todoapp_v117') || '[]');
-    let categories = ["Tout", "Général", "Maison", "Jardin", "Voiture", "Aster", "Aimé", "Masquées"];
-    let activeCategory = "Tout";
-
-    let currentEditing = { id: null, selectedCategory: 'Général', selectedPriority: 0 };
-
-    function saveLocal() {
-      localStorage.setItem('todoapp_v119', JSON.stringify(todos));
-      render();
+    // Synchronise une tâche spécifique vers Supabase de manière transparente
+    async function pushTaskToCloud(todo) {
+      const payload = cleanDbPayload(todo);
+      try {
+        const { data, error } = await supabaseClient.from('todos').upsert([payload]).select();
+        if (!error && data && data.length > 0) {
+          updateTaskIdLocally(todo.id, Number(data[0].id));
+        } else if (error) {
+          console.warn("Upsert avec ID échoué, essai d'insertion simple:", error.message);
+          const { id, ...payloadNoId } = payload;
+          const { data: insData, error: insErr } = await supabaseClient.from('todos').insert([payloadNoId]).select();
+          if (!insErr && insData && insData.length > 0) {
+            updateTaskIdLocally(todo.id, Number(insData[0].id));
+          }
+        }
+      } catch (err) {
+        console.error("Erreur pushTaskToCloud:", err);
+      }
     }
 
     // --- SYNCHRONISATION EN TEMPS RÉEL (SUPABASE) ---
@@ -305,13 +334,20 @@
           .order('id', { ascending: false });
 
         if (!error && data) {
-          const existingMap = new Map(todos.map(t => [t.id, t]));
+          const cloudMap = new Map();
+          data.forEach(item => cloudMap.set(Number(item.id), item));
 
-          todos = data.map(item => {
+          const localMap = new Map();
+          todos.forEach(t => localMap.set(t.id, t));
+
+          const merged = [];
+
+          // 1. Mise à jour depuis les données du serveur
+          data.forEach(item => {
             const id = Number(item.id);
-            const existing = existingMap.get(id);
+            const local = localMap.get(id);
 
-            return {
+            merged.push({
               id: id,
               text: item.text || '',
               completed: !!item.completed,
@@ -320,14 +356,22 @@
               tags: Array.isArray(item.tags) ? item.tags : [],
               notes: item.notes || '',
               paused: !!item.paused,
-              pauseMode: (existing && existing.pauseMode) || item.pauseMode || item.pause_mode || 'griser',
-              collapsed: existing ? !!existing.collapsed : !!item.collapsed,
-              parent_id: item.parent_id ? Number(item.parent_id) : null,
-              updated_at: item.updated_at || new Date().toISOString()
-            };
+              pauseMode: local ? (local.pauseMode || 'griser') : 'griser',
+              collapsed: local ? !!local.collapsed : false,
+              parent_id: item.parent_id ? Number(item.parent_id) : null
+            });
           });
 
+          // 2. Conservation des tâches créées localement pas encore reçues par le serveur (empêche la disparition)
+          todos.forEach(local => {
+            if (!cloudMap.has(local.id)) {
+              merged.push(local);
+            }
+          });
+
+          todos = merged;
           saveLocal();
+
           if (syncStatus) {
             syncStatus.textContent = "● Synchro Temps Réel";
             syncStatus.className = "text-emerald-600 font-medium";
@@ -358,10 +402,9 @@
       if (!text) return;
 
       const targetCat = (activeCategory === 'Tout' || activeCategory === 'Masquées') ? 'Général' : activeCategory;
-      const tempId = generateSafeId();
 
       const newTodo = {
-        id: tempId,
+        id: generateSafeId(),
         text: text,
         completed: false,
         category: targetCat,
@@ -371,37 +414,14 @@
         paused: false,
         pauseMode: 'griser',
         collapsed: false,
-        parent_id: null,
-        updated_at: new Date().toISOString()
+        parent_id: null
       };
 
       todos.unshift(newTodo);
       input.value = '';
       saveLocal();
 
-      try {
-        const payload = toDbPayload(newTodo);
-        delete payload.id; // Laisse Supabase attribuer l'identifiant primaire officiel en BDD
-
-        const { data, error } = await supabaseClient.from('todos').insert([payload]).select();
-        if (error) {
-          console.error("Erreur insertion Supabase:", error);
-          const { data: upsertData, error: upsertErr } = await supabaseClient.from('todos').upsert([toDbPayload(newTodo)]).select();
-          if (!upsertErr && upsertData && upsertData.length > 0) {
-            const realId = Number(upsertData[0].id);
-            const item = todos.find(t => t.id === tempId);
-            if (item) item.id = realId;
-            saveLocal();
-          }
-        } else if (data && data.length > 0) {
-          const realId = Number(data[0].id);
-          const item = todos.find(t => t.id === tempId);
-          if (item) item.id = realId;
-          saveLocal();
-        }
-      } catch (err) {
-        console.error("Erreur addTask:", err);
-      }
+      await pushTaskToCloud(newTodo);
     }
 
     async function addSubtask(e, parentId) {
@@ -414,62 +434,34 @@
 
       parent.collapsed = false;
 
-      const tempId = generateSafeId();
-
       const newSub = {
-        id: tempId,
+        id: generateSafeId(),
         text: text.trim(),
         completed: false,
-        category: parent ? parent.category : 'Général',
+        category: parent.category || 'Général',
         priority: 0,
         tags: [],
         notes: '',
         paused: false,
         pauseMode: 'griser',
         collapsed: false,
-        parent_id: parent.id,
-        updated_at: new Date().toISOString()
+        parent_id: parent.id
       };
 
       todos.push(newSub);
       saveLocal();
 
-      try {
-        const payload = toDbPayload(newSub);
-        delete payload.id;
-
-        const { data, error } = await supabaseClient.from('todos').insert([payload]).select();
-        if (error) {
-          console.error("Erreur insertion sous-tâche Supabase:", error);
-          const { data: upsertData, error: upsertErr } = await supabaseClient.from('todos').upsert([toDbPayload(newSub)]).select();
-          if (!upsertErr && upsertData && upsertData.length > 0) {
-            const realId = Number(upsertData[0].id);
-            const item = todos.find(t => t.id === tempId);
-            if (item) item.id = realId;
-            saveLocal();
-          }
-        } else if (data && data.length > 0) {
-          const realId = Number(data[0].id);
-          const item = todos.find(t => t.id === tempId);
-          if (item) item.id = realId;
-          saveLocal();
-        }
-      } catch (err) {
-        console.error("Erreur addSubtask:", err);
-      }
+      await pushTaskToCloud(newSub);
     }
 
-    // --- DEPLIER / PLIER LES SOUS-TACHES ---
-    async function toggleCollapse(e, id) {
+    // --- PLIER / DÉPLIER (PUREMENT LOCAL) ---
+    function toggleCollapse(e, id) {
       if (e) e.stopPropagation();
       const task = todos.find(t => t.id === id);
       if (!task) return;
 
       task.collapsed = !task.collapsed;
-      task.updated_at = new Date().toISOString();
-
       saveLocal();
-      await supabaseClient.from('todos').upsert([toDbPayload(task)]);
     }
 
     // --- LOGIQUE DE DÉCOCHAGE EN CASCADE ---
@@ -478,7 +470,6 @@
       for (const child of children) {
         if (child.completed) {
           child.completed = false;
-          child.updated_at = new Date().toISOString();
           if (!updatedList.some(u => u.id === child.id)) updatedList.push(child);
         }
         uncheckDescendants(child.id, updatedList);
@@ -490,7 +481,6 @@
       const parent = todos.find(t => t.id === parentId);
       if (parent && parent.completed) {
         parent.completed = false;
-        parent.updated_at = new Date().toISOString();
         if (!updatedList.some(u => u.id === parent.id)) updatedList.push(parent);
         if (parent.parent_id) {
           uncheckAncestors(parent.parent_id, updatedList);
@@ -507,7 +497,6 @@
       const updatedTasks = [];
 
       task.completed = newStatus;
-      task.updated_at = new Date().toISOString();
       updatedTasks.push(task);
 
       if (newStatus === false) {
@@ -517,9 +506,8 @@
 
       saveLocal();
 
-      if (updatedTasks.length > 0) {
-        const payloads = updatedTasks.map(t => toDbPayload(t));
-        await supabaseClient.from('todos').upsert(payloads);
+      for (const t of updatedTasks) {
+        await pushTaskToCloud(t);
       }
     }
 
@@ -536,8 +524,12 @@
       todos = todos.filter(t => !idsToDelete.includes(t.id));
       saveLocal();
 
-      for (const delId of idsToDelete) {
-        await supabaseClient.from('todos').delete().eq('id', delId);
+      try {
+        for (const delId of idsToDelete) {
+          await supabaseClient.from('todos').delete().eq('id', delId);
+        }
+      } catch (err) {
+        console.error("Erreur deleteTask:", err);
       }
     }
 
@@ -713,11 +705,10 @@
         task.notes = notes;
         task.paused = paused;
         task.pauseMode = pauseMode;
-        task.updated_at = new Date().toISOString();
 
         saveLocal();
         closeModal();
-        await supabaseClient.from('todos').upsert([toDbPayload(task)]);
+        await pushTaskToCloud(task);
       }
     }
 
