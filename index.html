@@ -1,19 +1,22 @@
-<!-- TODOAPP - Version 1.3.1 - 996 lignes -->
+<!-- TODOAPP - Version 1.3.2 - 1022 lignes -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>TODOAPP - v1.3.1</title>
+  <title>TODOAPP - v1.3.2</title>
   
-  <!-- Configuration PWA -->
+  <!-- Configuration PWA & iOS -->
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="theme-color" content="#ffffff">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0f172a">
   
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
+    html, body {
+      background-color: #0f172a; /* Évite tout flash blanc/noir au démarrage iOS */
+    }
     body { 
       -webkit-tap-highlight-color: transparent; 
       padding-top: max(0.75rem, env(safe-area-inset-top));
@@ -39,9 +42,12 @@
   <!-- SPLASH SCREEN D'ACCUEIL -->
   <div id="splash-screen" class="fixed inset-0 bg-slate-900 text-white z-[100] flex flex-col items-center justify-center p-4">
     <div class="flex flex-col items-center gap-4 animate-pulse">
-      <div class="w-16 h-16 bg-white text-slate-900 rounded-2xl flex items-center justify-center text-3xl font-extrabold shadow-2xl">
-        ✓
-      </div>
+      <img 
+        src="splashlogo.jpg" 
+        alt="TODOAPP Logo" 
+        class="w-24 h-24 object-cover rounded-3xl shadow-2xl border-2 border-slate-700/50"
+        onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'w-20 h-20 bg-white text-slate-900 rounded-3xl flex items-center justify-center text-4xl font-extrabold shadow-2xl\'>✓</div>';"
+      >
       <div class="text-center">
         <h1 class="text-2xl font-extrabold tracking-tight">TODOAPP</h1>
         <p class="text-xs text-slate-400 mt-1 font-medium">Chargement de vos tâches...</p>
@@ -60,7 +66,7 @@
           <div class="flex items-center gap-2">
             <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">TODOAPP</h1>
             <span id="sync-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0" title="Synchro fonctionnelle"></span>
-            <span class="text-xs text-slate-400 font-medium">v1.3.1</span>
+            <span class="text-xs text-slate-400 font-medium">v1.3.2</span>
           </div>
 
           <!-- Boutons d'action -->
@@ -221,7 +227,7 @@
       <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-200 pt-3">
         <div>
           <div class="text-xs font-bold text-slate-800">Version de l'application</div>
-          <div class="text-[11px] text-slate-500">v1.3.1 (Cache: todoapp_v131)</div>
+          <div class="text-[11px] text-slate-500">v1.3.2 (Cache: todoapp_v132)</div>
         </div>
         <button onclick="forceAppUpdate()" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-colors shadow-sm">
           Forcer MaJ
@@ -233,7 +239,7 @@
 
   <script>
     // --- SERVICE WORKER ET GESTION DU CACHE PWA ---
-    const CACHE_NAME = 'todoapp_v131';
+    const CACHE_NAME = 'todoapp_v132';
 
     if ('serviceWorker' in navigator) {
       const swCode = `
@@ -288,9 +294,9 @@
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let todos = JSON.parse(
+      localStorage.getItem('todoapp_v132') || 
       localStorage.getItem('todoapp_v131') || 
-      localStorage.getItem('todoapp_v130') || 
-      localStorage.getItem('todoapp_v120') || '[]'
+      localStorage.getItem('todoapp_v130') || '[]'
     );
     let categories = ["Tout", "Général", "Maison", "Jardin", "Voiture", "Aster", "Aimé", "Masquées"];
     let activeCategory = "Tout";
@@ -299,7 +305,7 @@
     let currentEditing = { id: null, selectedCategory: 'Général', selectedPriority: 0 };
 
     function saveLocal() {
-      localStorage.setItem('todoapp_v131', JSON.stringify(todos));
+      localStorage.setItem('todoapp_v132', JSON.stringify(todos));
       render();
     }
 
@@ -307,12 +313,20 @@
       return Math.floor((Date.now() % 1000000000)) + Math.floor(Math.random() * 1000);
     }
 
+    // Animation de masquage doux du splash screen avec un délai minimum pour éviter le flash
+    const splashStartTime = Date.now();
     function hideSplashScreen() {
-      const splash = document.getElementById('splash-screen');
-      if (splash) {
-        splash.classList.add('hidden-splash');
-        setTimeout(() => splash.style.display = 'none', 450);
-      }
+      const elapsed = Date.now() - splashStartTime;
+      const minDelay = 600; // Garantit la présence du splash screen durant l'initialisation iOS
+      const remaining = Math.max(0, minDelay - elapsed);
+
+      setTimeout(() => {
+        const splash = document.getElementById('splash-screen');
+        if (splash) {
+          splash.classList.add('hidden-splash');
+          setTimeout(() => splash.style.display = 'none', 450);
+        }
+      }, remaining);
     }
 
     // Maintient la cohérence locale entre ID temporaire et ID réel BDD
@@ -437,7 +451,8 @@
               paused: serverItem.paused !== undefined ? !!serverItem.paused : localTask.paused,
               pauseMode: localTask.pauseMode || 'griser',
               collapsed: !!localTask.collapsed,
-              parent_id: serverItem.parent_id ? Number(serverItem.parent_id) : localTask.parent_id
+              parent_id: serverItem.parent_id ? Number(serverItem.parent_id) : localTask.parent_id,
+              created_at: localTask.created_at || serverItem.created_at || new Date().toISOString()
             });
           } else {
             updatedTodos.push(localTask);
@@ -458,7 +473,8 @@
               paused: !!serverItem.paused,
               pauseMode: 'griser',
               collapsed: false,
-              parent_id: serverItem.parent_id ? Number(serverItem.parent_id) : null
+              parent_id: serverItem.parent_id ? Number(serverItem.parent_id) : null,
+              created_at: serverItem.created_at || new Date().toISOString()
             });
           }
         });
@@ -501,7 +517,8 @@
         paused: false,
         pauseMode: 'griser',
         collapsed: false,
-        parent_id: null
+        parent_id: null,
+        created_at: new Date().toISOString()
       };
 
       todos.unshift(newTodo);
@@ -532,7 +549,8 @@
         paused: false,
         pauseMode: 'griser',
         collapsed: false,
-        parent_id: parent.id
+        parent_id: parent.id,
+        created_at: new Date().toISOString()
       };
 
       todos.push(newSub);
@@ -849,12 +867,23 @@
       return hasAncestorWithCategory(parent.parent_id, categoryName);
     }
 
+    function getTaskTime(t) {
+      if (t.created_at) {
+        const time = new Date(t.created_at).getTime();
+        if (!isNaN(time)) return time;
+      }
+      return t.id || 0;
+    }
+
     function sortTasks(items) {
       return items.sort((a, b) => {
-        if (currentSort === 'date-desc') return b.id - a.id;
-        if (currentSort === 'date-asc') return a.id - b.id;
-        if (currentSort === 'prio-desc') return (b.priority || 0) - (a.priority || 0) || (b.id - a.id);
-        if (currentSort === 'prio-asc') return (a.priority || 0) - (b.priority || 0) || (b.id - a.id);
+        const timeA = getTaskTime(a);
+        const timeB = getTaskTime(b);
+
+        if (currentSort === 'date-desc') return timeB - timeA;
+        if (currentSort === 'date-asc') return timeA - timeB;
+        if (currentSort === 'prio-desc') return (b.priority || 0) - (a.priority || 0) || (timeB - timeA);
+        if (currentSort === 'prio-asc') return (a.priority || 0) - (b.priority || 0) || (timeB - timeA);
         return 0;
       });
     }
@@ -988,9 +1017,6 @@
     render();
     initRealtime();
     syncCloud();
-
-    // Secours au cas où la synchro prend du temps pour retirer l'écran d'accueil
-    setTimeout(hideSplashScreen, 1200);
   </script>
 </body>
 </html>
