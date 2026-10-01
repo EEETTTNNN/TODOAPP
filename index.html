@@ -1,10 +1,10 @@
-<!-- TODOAPP - Version 1.1.8 - 863 lignes -->
+<!-- TODOAPP - Version 1.1.9 - 883 lignes -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>TODOAPP - v1.1.8</title>
+  <title>TODOAPP - v1.1.9</title>
   
   <!-- Configuration PWA -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
           <div class="flex items-center gap-2">
             <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">TODOAPP</h1>
             <span id="sync-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0" title="Synchro fonctionnelle"></span>
-            <span class="text-xs text-slate-400 font-medium">v1.1.8</span>
+            <span class="text-xs text-slate-400 font-medium">v1.1.9</span>
           </div>
 
           <!-- Boutons d'action -->
@@ -175,7 +175,7 @@
       <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-200">
         <div>
           <div class="text-xs font-bold text-slate-800">Version de l'application</div>
-          <div class="text-[11px] text-slate-500">v1.1.8 (Cache: todoapp_v118)</div>
+          <div class="text-[11px] text-slate-500">v1.1.9 (Cache: todoapp_v119)</div>
         </div>
         <button onclick="forceAppUpdate()" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-colors shadow-sm">
           Forcer MaJ
@@ -187,7 +187,7 @@
 
   <script>
     // --- SERVICE WORKER ET GESTION DU CACHE PWA ---
-    const CACHE_NAME = 'todoapp_v118';
+    const CACHE_NAME = 'todoapp_v119';
 
     if ('serviceWorker' in navigator) {
       const swCode = `
@@ -238,7 +238,24 @@
       window.location.reload(true);
     }
 
-    // Générateur d'identifiant compatible entier 32-bits PostgreSQL (max 2 147 483 647)
+    // Helper pour nettoyer l'objet avant envoi à Supabase (évite les erreurs 400 sur colonnes inexistantes)
+    function toDbPayload(todo) {
+      const payload = {
+        text: todo.text || '',
+        completed: !!todo.completed,
+        category: todo.category || 'Général',
+        priority: Number(todo.priority || 0),
+        tags: Array.isArray(todo.tags) ? todo.tags : [],
+        notes: todo.notes || '',
+        paused: !!todo.paused,
+        parent_id: todo.parent_id ? Number(todo.parent_id) : null,
+        updated_at: todo.updated_at || new Date().toISOString()
+      };
+      if (todo.id) payload.id = Number(todo.id);
+      return payload;
+    }
+
+    // Générateur d'identifiant compatible entier 32-bits PostgreSQL
     function generateSafeId() {
       return Math.floor((Date.now() % 1000000000)) + Math.floor(Math.random() * 1000);
     }
@@ -248,14 +265,14 @@
     const SUPABASE_KEY = "sb_publishable_6f1T8ttm3Lc0yTSqsHUikA_XW5eo3X7";
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let todos = JSON.parse(localStorage.getItem('todoapp_v118') || localStorage.getItem('todoapp_v117') || localStorage.getItem('todoapp_v116') || '[]');
+    let todos = JSON.parse(localStorage.getItem('todoapp_v119') || localStorage.getItem('todoapp_v118') || localStorage.getItem('todoapp_v117') || '[]');
     let categories = ["Tout", "Général", "Maison", "Jardin", "Voiture", "Aster", "Aimé", "Masquées"];
     let activeCategory = "Tout";
 
     let currentEditing = { id: null, selectedCategory: 'Général', selectedPriority: 0 };
 
     function saveLocal() {
-      localStorage.setItem('todoapp_v118', JSON.stringify(todos));
+      localStorage.setItem('todoapp_v119', JSON.stringify(todos));
       render();
     }
 
@@ -288,20 +305,27 @@
           .order('id', { ascending: false });
 
         if (!error && data) {
-          todos = data.map(item => ({
-            id: Number(item.id),
-            text: item.text || '',
-            completed: !!item.completed,
-            category: item.category || 'Général',
-            priority: Number(item.priority || 0),
-            tags: Array.isArray(item.tags) ? item.tags : [],
-            notes: item.notes || '',
-            paused: !!item.paused,
-            pauseMode: item.pauseMode || 'griser',
-            collapsed: !!item.collapsed,
-            parent_id: item.parent_id ? Number(item.parent_id) : null,
-            updated_at: item.updated_at || new Date().toISOString()
-          }));
+          const existingMap = new Map(todos.map(t => [t.id, t]));
+
+          todos = data.map(item => {
+            const id = Number(item.id);
+            const existing = existingMap.get(id);
+
+            return {
+              id: id,
+              text: item.text || '',
+              completed: !!item.completed,
+              category: item.category || 'Général',
+              priority: Number(item.priority || 0),
+              tags: Array.isArray(item.tags) ? item.tags : [],
+              notes: item.notes || '',
+              paused: !!item.paused,
+              pauseMode: (existing && existing.pauseMode) || item.pauseMode || item.pause_mode || 'griser',
+              collapsed: existing ? !!existing.collapsed : !!item.collapsed,
+              parent_id: item.parent_id ? Number(item.parent_id) : null,
+              updated_at: item.updated_at || new Date().toISOString()
+            };
+          });
 
           saveLocal();
           if (syncStatus) {
@@ -356,24 +380,24 @@
       saveLocal();
 
       try {
-        const { data, error } = await supabaseClient.from('todos').upsert([newTodo]).select();
+        const payload = toDbPayload(newTodo);
+        delete payload.id; // Laisse Supabase attribuer l'identifiant primaire officiel en BDD
+
+        const { data, error } = await supabaseClient.from('todos').insert([payload]).select();
         if (error) {
-          console.error("Erreur Supabase, essai sans id explicite:", error);
-          const { id, ...todoNoId } = newTodo;
-          const { data: inserted, error: err2 } = await supabaseClient.from('todos').insert([todoNoId]).select();
-          if (!err2 && inserted && inserted.length > 0) {
-            const index = todos.findIndex(t => t.id === tempId);
-            if (index !== -1) {
-              todos[index].id = Number(inserted[0].id);
-              saveLocal();
-            }
-          }
-        } else if (data && data.length > 0) {
-          const index = todos.findIndex(t => t.id === tempId);
-          if (index !== -1) {
-            todos[index].id = Number(data[0].id);
+          console.error("Erreur insertion Supabase:", error);
+          const { data: upsertData, error: upsertErr } = await supabaseClient.from('todos').upsert([toDbPayload(newTodo)]).select();
+          if (!upsertErr && upsertData && upsertData.length > 0) {
+            const realId = Number(upsertData[0].id);
+            const item = todos.find(t => t.id === tempId);
+            if (item) item.id = realId;
             saveLocal();
           }
+        } else if (data && data.length > 0) {
+          const realId = Number(data[0].id);
+          const item = todos.find(t => t.id === tempId);
+          if (item) item.id = realId;
+          saveLocal();
         }
       } catch (err) {
         console.error("Erreur addTask:", err);
@@ -383,10 +407,12 @@
     async function addSubtask(e, parentId) {
       if (e) e.stopPropagation();
       const parent = todos.find(t => t.id === parentId);
+      if (!parent) return;
+
       const text = prompt("Nom de la sous-tâche :");
       if (!text || !text.trim()) return;
 
-      if (parent) parent.collapsed = false;
+      parent.collapsed = false;
 
       const tempId = generateSafeId();
 
@@ -401,39 +427,32 @@
         paused: false,
         pauseMode: 'griser',
         collapsed: false,
-        parent_id: parentId,
+        parent_id: parent.id,
         updated_at: new Date().toISOString()
       };
 
       todos.push(newSub);
-
-      const updatedTasks = [newSub];
-      if (parent) updatedTasks.push(parent);
-      if (parent && parent.completed) {
-        uncheckAncestors(parentId, updatedTasks);
-      }
-
       saveLocal();
 
       try {
-        const { data, error } = await supabaseClient.from('todos').upsert([newSub]).select();
+        const payload = toDbPayload(newSub);
+        delete payload.id;
+
+        const { data, error } = await supabaseClient.from('todos').insert([payload]).select();
         if (error) {
-          console.error("Erreur Supabase addSubtask, essai sans id:", error);
-          const { id, ...subNoId } = newSub;
-          const { data: inserted, error: err2 } = await supabaseClient.from('todos').insert([subNoId]).select();
-          if (!err2 && inserted && inserted.length > 0) {
-            const index = todos.findIndex(t => t.id === tempId);
-            if (index !== -1) {
-              todos[index].id = Number(inserted[0].id);
-              saveLocal();
-            }
-          }
-        } else if (data && data.length > 0) {
-          const index = todos.findIndex(t => t.id === tempId);
-          if (index !== -1) {
-            todos[index].id = Number(data[0].id);
+          console.error("Erreur insertion sous-tâche Supabase:", error);
+          const { data: upsertData, error: upsertErr } = await supabaseClient.from('todos').upsert([toDbPayload(newSub)]).select();
+          if (!upsertErr && upsertData && upsertData.length > 0) {
+            const realId = Number(upsertData[0].id);
+            const item = todos.find(t => t.id === tempId);
+            if (item) item.id = realId;
             saveLocal();
           }
+        } else if (data && data.length > 0) {
+          const realId = Number(data[0].id);
+          const item = todos.find(t => t.id === tempId);
+          if (item) item.id = realId;
+          saveLocal();
         }
       } catch (err) {
         console.error("Erreur addSubtask:", err);
@@ -450,7 +469,7 @@
       task.updated_at = new Date().toISOString();
 
       saveLocal();
-      await supabaseClient.from('todos').upsert([task]);
+      await supabaseClient.from('todos').upsert([toDbPayload(task)]);
     }
 
     // --- LOGIQUE DE DÉCOCHAGE EN CASCADE ---
@@ -499,7 +518,8 @@
       saveLocal();
 
       if (updatedTasks.length > 0) {
-        await supabaseClient.from('todos').upsert(updatedTasks);
+        const payloads = updatedTasks.map(t => toDbPayload(t));
+        await supabaseClient.from('todos').upsert(payloads);
       }
     }
 
@@ -697,7 +717,7 @@
 
         saveLocal();
         closeModal();
-        await supabaseClient.from('todos').upsert([task]);
+        await supabaseClient.from('todos').upsert([toDbPayload(task)]);
       }
     }
 
