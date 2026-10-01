@@ -1,10 +1,10 @@
-<!-- TODOAPP - Version 1.1.7 - 815 lignes -->
+<!-- TODOAPP - Version 1.1.8 - 863 lignes -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>TODOAPP - v1.1.7</title>
+  <title>TODOAPP - v1.1.8</title>
   
   <!-- Configuration PWA -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -34,14 +34,14 @@
       <header class="mb-4">
         <div class="flex justify-between items-center mb-3 gap-2">
           
-          <!-- Titre + Pastille Synchro + Version (Alignés sur la même ligne) -->
+          <!-- Titre + Pastille Synchro + Version -->
           <div class="flex items-center gap-2">
             <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">TODOAPP</h1>
             <span id="sync-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0" title="Synchro fonctionnelle"></span>
-            <span class="text-xs text-slate-400 font-medium">v1.1.7</span>
+            <span class="text-xs text-slate-400 font-medium">v1.1.8</span>
           </div>
 
-          <!-- Boutons d'action (Carré gris réduit) -->
+          <!-- Boutons d'action -->
           <div class="flex items-center gap-1.5 shrink-0">
             <button onclick="syncCloud()" class="w-8 h-8 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 text-xs font-semibold transition-colors flex items-center justify-center" title="Synchroniser">
               <span id="sync-icon" class="inline-block leading-none">🔄</span>
@@ -57,7 +57,7 @@
         <div class="flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-slate-100 scrollbar-none" id="category-tabs"></div>
       </header>
 
-      <!-- Zone de Saisie (Hauteur réduite similaire aux onglets) -->
+      <!-- Zone de Saisie -->
       <form onsubmit="addTask(event)" class="flex gap-1.5 mb-4">
         <input 
           type="text" 
@@ -175,7 +175,7 @@
       <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-200">
         <div>
           <div class="text-xs font-bold text-slate-800">Version de l'application</div>
-          <div class="text-[11px] text-slate-500">v1.1.7 (Cache: todoapp_v117)</div>
+          <div class="text-[11px] text-slate-500">v1.1.8 (Cache: todoapp_v118)</div>
         </div>
         <button onclick="forceAppUpdate()" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-colors shadow-sm">
           Forcer MaJ
@@ -187,7 +187,7 @@
 
   <script>
     // --- SERVICE WORKER ET GESTION DU CACHE PWA ---
-    const CACHE_NAME = 'todoapp_v117';
+    const CACHE_NAME = 'todoapp_v118';
 
     if ('serviceWorker' in navigator) {
       const swCode = `
@@ -238,19 +238,24 @@
       window.location.reload(true);
     }
 
+    // Générateur d'identifiant compatible entier 32-bits PostgreSQL (max 2 147 483 647)
+    function generateSafeId() {
+      return Math.floor((Date.now() % 1000000000)) + Math.floor(Math.random() * 1000);
+    }
+
     // --- BASE DE DONNÉES SUPABASE & DONNÉES LOCALES ---
     const SUPABASE_URL = "https://bwirwhcetlfwzqswbfwr.supabase.co";
     const SUPABASE_KEY = "sb_publishable_6f1T8ttm3Lc0yTSqsHUikA_XW5eo3X7";
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let todos = JSON.parse(localStorage.getItem('todoapp_v117') || localStorage.getItem('todoapp_v116') || localStorage.getItem('todoapp_v115') || '[]');
+    let todos = JSON.parse(localStorage.getItem('todoapp_v118') || localStorage.getItem('todoapp_v117') || localStorage.getItem('todoapp_v116') || '[]');
     let categories = ["Tout", "Général", "Maison", "Jardin", "Voiture", "Aster", "Aimé", "Masquées"];
     let activeCategory = "Tout";
 
     let currentEditing = { id: null, selectedCategory: 'Général', selectedPriority: 0 };
 
     function saveLocal() {
-      localStorage.setItem('todoapp_v117', JSON.stringify(todos));
+      localStorage.setItem('todoapp_v118', JSON.stringify(todos));
       render();
     }
 
@@ -329,9 +334,10 @@
       if (!text) return;
 
       const targetCat = (activeCategory === 'Tout' || activeCategory === 'Masquées') ? 'Général' : activeCategory;
+      const tempId = generateSafeId();
 
       const newTodo = {
-        id: Date.now(),
+        id: tempId,
         text: text,
         completed: false,
         category: targetCat,
@@ -349,7 +355,29 @@
       input.value = '';
       saveLocal();
 
-      await supabaseClient.from('todos').upsert([newTodo]);
+      try {
+        const { data, error } = await supabaseClient.from('todos').upsert([newTodo]).select();
+        if (error) {
+          console.error("Erreur Supabase, essai sans id explicite:", error);
+          const { id, ...todoNoId } = newTodo;
+          const { data: inserted, error: err2 } = await supabaseClient.from('todos').insert([todoNoId]).select();
+          if (!err2 && inserted && inserted.length > 0) {
+            const index = todos.findIndex(t => t.id === tempId);
+            if (index !== -1) {
+              todos[index].id = Number(inserted[0].id);
+              saveLocal();
+            }
+          }
+        } else if (data && data.length > 0) {
+          const index = todos.findIndex(t => t.id === tempId);
+          if (index !== -1) {
+            todos[index].id = Number(data[0].id);
+            saveLocal();
+          }
+        }
+      } catch (err) {
+        console.error("Erreur addTask:", err);
+      }
     }
 
     async function addSubtask(e, parentId) {
@@ -360,8 +388,10 @@
 
       if (parent) parent.collapsed = false;
 
+      const tempId = generateSafeId();
+
       const newSub = {
-        id: Date.now(),
+        id: tempId,
         text: text.trim(),
         completed: false,
         category: parent ? parent.category : 'Général',
@@ -384,7 +414,30 @@
       }
 
       saveLocal();
-      await supabaseClient.from('todos').upsert(updatedTasks);
+
+      try {
+        const { data, error } = await supabaseClient.from('todos').upsert([newSub]).select();
+        if (error) {
+          console.error("Erreur Supabase addSubtask, essai sans id:", error);
+          const { id, ...subNoId } = newSub;
+          const { data: inserted, error: err2 } = await supabaseClient.from('todos').insert([subNoId]).select();
+          if (!err2 && inserted && inserted.length > 0) {
+            const index = todos.findIndex(t => t.id === tempId);
+            if (index !== -1) {
+              todos[index].id = Number(inserted[0].id);
+              saveLocal();
+            }
+          }
+        } else if (data && data.length > 0) {
+          const index = todos.findIndex(t => t.id === tempId);
+          if (index !== -1) {
+            todos[index].id = Number(data[0].id);
+            saveLocal();
+          }
+        }
+      } catch (err) {
+        console.error("Erreur addSubtask:", err);
+      }
     }
 
     // --- DEPLIER / PLIER LES SOUS-TACHES ---
@@ -549,7 +602,6 @@
       if (name && name.trim()) {
         const clean = name.trim();
         if (!categories.includes(clean)) {
-          // Insérer la nouvelle catégorie avant 'Masquées' (qui reste en dernier)
           categories.splice(categories.length - 1, 0, clean);
           currentEditing.selectedCategory = clean;
           renderCategoryTabs();
@@ -653,7 +705,6 @@
     function renderCategoryTabs() {
       const container = document.getElementById('category-tabs');
       
-      // Assurer que 'Masquées' est TOUJOURS à la fin (à droite)
       let otherCategories = categories.filter(c => c !== 'Masquées');
       let orderedCategories = [...otherCategories, 'Masquées'];
       
@@ -683,7 +734,6 @@
 
     function renderTaskTree(parentId = null, level = 0) {
       const items = todos.filter(t => {
-        // En mode 'Masquées', on n'affiche que les tâches qui sont en pause
         if (activeCategory === 'Masquées') {
           if (level === 0) {
             return t.paused && t.parent_id === null;
@@ -692,7 +742,6 @@
           }
         }
 
-        // Dans les autres modes, on masque les tâches en pause (car elles vont dans l'onglet Masquées)
         if (t.paused) return false;
 
         if (level === 0) {
@@ -725,7 +774,6 @@
         else if (todo.priority === 3) prioBorder = 'border-l-4 border-l-orange-500';
         else if (todo.priority === 4) prioBorder = 'border-l-4 border-l-red-500';
 
-        // Icônes SVG propres pour flèches déplier/plier
         const arrowSvg = isCollapsed 
           ? `<svg class="w-4 h-4 text-slate-500 fill-current" viewBox="0 0 20 20"><path d="M6 4l10 6-10 6V4z"/></svg>`
           : `<svg class="w-4 h-4 text-slate-500 fill-current" viewBox="0 0 20 20"><path d="M4 6l6 10 6-10H4z"/></svg>`;
