@@ -1,12 +1,11 @@
-<!-- TODOAPP - Version 1.3.7 -->
+<!-- TODOAPP - Version 1.3.8 (897 lignes) -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>TODOAPP - v1.3.7</title>
+  <title>TODOAPP - v1.3.8</title>
   
-  <!-- Configuration PWA & iOS -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#0f172a">
@@ -17,22 +16,23 @@
     html, body {
       background-color: #0f172a;
     }
-    body { 
-      -webkit-tap-highlight-color: transparent; 
+    body {
+      -webkit-tap-highlight-color: transparent;
       padding-top: max(0.75rem, env(safe-area-inset-top));
       padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
       padding-left: max(1rem, env(safe-area-inset-left));
       padding-right: max(1rem, env(safe-area-inset-right));
     }
-    .scrollbar-none::-webkit-scrollbar { display: none; }
-    .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
-
-    /* Forcer 16px sur les champs texte pour désactiver le zoom iOS Safari */
+    .scrollbar-none::-webkit-scrollbar {
+      display: none;
+    }
+    .scrollbar-none {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
     input, select, textarea {
       font-size: 16px !important;
     }
-
-    /* Overlay Splash Screen */
     #splash-screen {
       transition: opacity 0.4s ease-out, visibility 0.4s ease-out;
     }
@@ -44,91 +44,67 @@
 </head>
 <body class="bg-white text-slate-800 font-sans min-h-screen">
 
-  <!-- SPLASH SCREEN PLEIN ÉCRAN -->
-  <div id="splash-screen" class="fixed inset-0 z-[100] bg-slate-900 flex items-center justify-center">
-    <img 
-      src="splashlogo.jpg" 
-      alt="Splash Screen" 
-      class="w-full h-full object-cover"
-    >
+  <!-- BANDEAU D'ALERTE DIAGNOSTIC BDD -->
+  <div id="debug-banner" class="hidden bg-rose-600 text-white text-xs font-bold px-4 py-2 text-center fixed top-0 left-0 right-0 z-[110] shadow-md flex justify-between items-center">
+    <span id="debug-msg" class="truncate pr-2">Erreur Supabase</span>
+    <button onclick="document.getElementById('debug-banner').classList.add('hidden')" class="bg-rose-800 px-2 py-0.5 rounded text-[10px]">✕</button>
   </div>
 
-  <div class="max-w-2xl mx-auto min-h-screen flex flex-col justify-between">
-    
+  <!-- SPLASH SCREEN -->
+  <div id="splash-screen" class="fixed inset-0 z-[100] bg-slate-900 flex items-center justify-center">
+    <img src="splashlogo.jpg" alt="Splash Screen" class="w-full h-full object-cover">
+  </div>
+
+  <div class="max-w-2xl mx-auto min-h-screen flex flex-col justify-between pt-2">
     <div>
-      <!-- En-tête -->
       <header class="mb-4">
         <div class="flex justify-between items-center mb-3 gap-2">
-          
-          <!-- Titre + Pastille Synchro + Version -->
           <div class="flex items-center gap-2">
             <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">TODOAPP</h1>
-            <span id="sync-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0" title="Statut de synchronisation"></span>
-            <span class="text-xs text-slate-400 font-medium">v1.3.7</span>
+            <span id="sync-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0"></span>
+            <span class="text-xs text-slate-400 font-medium">v1.3.8</span>
           </div>
-
-          <!-- Boutons d'action -->
           <div class="flex items-center gap-1.5 shrink-0">
-            <button onclick="syncCloud()" class="w-8 h-8 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 text-xs font-semibold transition-colors flex items-center justify-center" title="Synchroniser maintenant">
-              <span id="sync-icon" class="inline-block leading-none">🔄</span>
+            <button onclick="syncCloud()" class="w-8 h-8 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 text-xs font-semibold flex items-center justify-center" title="Synchroniser">
+              <span id="sync-icon">🔄</span>
             </button>
-            <button onclick="openSettingsModal()" class="w-8 h-8 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 text-xs font-semibold transition-colors flex items-center justify-center" title="Réglages">
-              <span class="leading-none">⚙️</span>
+            <button onclick="openSettingsModal()" class="w-8 h-8 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 text-xs font-semibold flex items-center justify-center" title="Réglages">
+              <span>⚙️</span>
             </button>
           </div>
-
         </div>
-
-        <!-- Onglets de Catégories -->
         <div class="flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-slate-100 scrollbar-none" id="category-tabs"></div>
       </header>
 
-      <!-- Zone de Saisie -->
       <form onsubmit="addTask(event)" class="flex gap-1.5 mb-4">
-        <input 
-          type="text" 
-          id="task-input" 
-          placeholder="Ajouter une tâche..." 
-          class="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-900"
-          required
-        >
-        <button type="submit" class="bg-slate-900 text-white rounded-xl px-3 py-1.5 font-bold text-sm hover:bg-slate-800 transition-colors">+</button>
+        <input type="text" id="task-input" placeholder="Ajouter une tâche..." class="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-900" required>
+        <button type="submit" class="bg-slate-900 text-white rounded-xl px-3 py-1.5 font-bold text-sm hover:bg-slate-800">+</button>
       </form>
 
-      <!-- Arborescence des tâches -->
       <div id="task-tree" class="space-y-3"></div>
     </div>
 
-    <!-- Pied de page -->
     <footer class="mt-8 pt-4 border-t border-slate-100 text-xs text-slate-400 flex justify-between items-center pb-6">
       <span id="task-count">0 tâche</span>
       <span id="sync-status" class="text-emerald-600 font-medium">● Synchro Temps Réel</span>
     </footer>
-
   </div>
 
-  <!-- MODALE D'ÉDITION / PARAMÉTRAGE DES TÂCHES -->
+  <!-- MODALE ÉDITION -->
   <div id="edit-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center p-4 z-50" onclick="closeModalOnOut(event)">
     <div class="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto space-y-5" onclick="event.stopPropagation()">
-      
       <div class="flex justify-between items-center border-b pb-3 border-slate-100">
         <h3 class="font-extrabold text-lg text-slate-900" id="modal-heading">Éditer la tâche</h3>
         <button onclick="closeModal()" class="text-slate-400 hover:text-slate-700 text-2xl font-bold">&times;</button>
       </div>
-
-      <!-- Titre -->
       <div>
         <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Titre</label>
         <textarea id="modal-title" rows="2" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 resize-none"></textarea>
       </div>
-
-      <!-- Catégorie -->
       <div>
         <label class="block text-xs font-bold text-slate-500 uppercase mb-1.5">Catégorie</label>
         <div class="flex flex-wrap gap-2 items-center" id="modal-categories-container"></div>
       </div>
-
-      <!-- Priorité -->
       <div>
         <label class="block text-xs font-bold text-slate-500 uppercase mb-1.5">Priorité</label>
         <div class="grid grid-cols-5 gap-1.5" id="modal-priority-container">
@@ -139,163 +115,105 @@
           <button type="button" onclick="setModalPriority(4)" data-prio="4" class="prio-btn py-2 text-xs font-bold rounded-xl border border-slate-200 bg-slate-50 text-slate-600">4</button>
         </div>
       </div>
-
-      <!-- Tags avec Autocomplétion -->
       <div class="relative">
-        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Tags (séparés par des virgules)</label>
-        <input 
-          type="text" 
-          id="modal-tags" 
-          placeholder="ex: maison, urgent, course..." 
-          oninput="handleTagAutocomplete(event)" 
-          class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
-        >
+        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Tags (séparés par virgules)</label>
+        <input type="text" id="modal-tags" placeholder="ex: maison, urgent..." oninput="handleTagAutocomplete(event)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900">
         <ul id="tag-suggestions" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-20 max-h-32 overflow-y-auto"></ul>
       </div>
-
-      <!-- Notes -->
       <div>
         <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Notes</label>
-        <textarea id="modal-notes" rows="3" placeholder="Informations complémentaires, détails..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 resize-none"></textarea>
+        <textarea id="modal-notes" rows="3" placeholder="Notes..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 resize-none"></textarea>
       </div>
-
-      <!-- Mise en Pause -->
       <div class="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
         <label class="flex items-center justify-between cursor-pointer">
           <span class="text-xs font-bold text-slate-700 uppercase">Mise en pause</span>
           <input type="checkbox" id="modal-paused" onchange="togglePauseOptions()" class="w-5 h-5 accent-slate-900 rounded">
         </label>
-
         <div id="pause-options" class="hidden pt-2 border-t border-slate-200 space-y-1.5">
-          <span class="text-[11px] font-semibold text-slate-500 block">Comportement lors de la pause :</span>
+          <span class="text-[11px] font-semibold text-slate-500 block">Option de pause :</span>
           <div class="flex gap-4 text-xs font-medium text-slate-700">
-            <label class="flex items-center gap-1.5 cursor-pointer">
-              <input type="radio" name="pause-mode" value="griser" class="accent-slate-900">
-              Griser
-            </label>
-            <label class="flex items-center gap-1.5 cursor-pointer">
-              <input type="radio" name="pause-mode" value="masquer" class="accent-slate-900">
-              Masquer
-            </label>
+            <label class="flex items-center gap-1.5 cursor-pointer"><input type="radio" name="pause-mode" value="griser" class="accent-slate-900"> Griser</label>
+            <label class="flex items-center gap-1.5 cursor-pointer"><input type="radio" name="pause-mode" value="masquer" class="accent-slate-900"> Masquer</label>
           </div>
         </div>
       </div>
-
-      <!-- Bouton Enregistrer -->
-      <button onclick="saveModal()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-2xl transition-all shadow-md">
-        Enregistrer
-      </button>
-
+      <button onclick="saveModal()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-2xl shadow-md">Enregistrer</button>
     </div>
   </div>
 
-  <!-- MODALE DE RÉGLAGES -->
+  <!-- MODALE RÉGLAGES -->
   <div id="settings-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center p-4 z-50" onclick="closeSettingsModalOnOut(event)">
     <div class="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl border border-slate-100 space-y-5" onclick="event.stopPropagation()">
-      
       <div class="flex justify-between items-center border-b pb-3 border-slate-100">
         <h3 class="font-extrabold text-lg text-slate-900">Réglages</h3>
         <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-slate-700 text-2xl font-bold">&times;</button>
       </div>
-
-      <!-- Tri de l'affichage -->
       <div class="flex items-center justify-between gap-3 p-1">
-        <label for="sort-select" class="text-xs font-bold text-slate-700 uppercase shrink-0">Ordre d'affichage</label>
-        <select 
-          id="sort-select" 
-          onchange="setSortOption(this.value)" 
-          class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 cursor-pointer"
-        >
+        <label for="sort-select" class="text-xs font-bold text-slate-700 uppercase">Ordre d'affichage</label>
+        <select id="sort-select" onchange="setSortOption(this.value)" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
           <option value="date-desc">Plus récents d'abord</option>
           <option value="date-asc">Plus anciens d'abord</option>
           <option value="prio-desc">Priorité haute d'abord</option>
           <option value="prio-asc">Priorité basse d'abord</option>
         </select>
       </div>
-
-      <!-- Info Version et Forcer MaJ -->
-      <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-200 pt-3">
+      <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-200">
         <div>
           <div class="text-xs font-bold text-slate-800">Version de l'application</div>
-          <div class="text-[11px] text-slate-500">v1.3.7 (Cache: todoapp_v137)</div>
+          <div class="text-[11px] text-slate-500">v1.3.8 (Cache: todoapp_v138)</div>
         </div>
-        <button onclick="forceAppUpdate()" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-colors shadow-sm">
-          Forcer MaJ
-        </button>
+        <button onclick="forceAppUpdate()" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800">Forcer MaJ</button>
       </div>
-
     </div>
   </div>
 
   <script>
-    // --- SERVICE WORKER ET GESTION DU CACHE PWA ---
-    const CACHE_NAME = 'todoapp_v137';
+    const CACHE_NAME = 'todoapp_v138';
 
     if ('serviceWorker' in navigator) {
       const swCode = `
         const CACHE_NAME = '${CACHE_NAME}';
-        self.addEventListener('install', (event) => self.skipWaiting());
-        self.addEventListener('activate', (event) => {
-          event.waitUntil(
-            caches.keys().then((keys) => {
-              return Promise.all(
-                keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
-              );
-            }).then(() => self.clients.claim())
-          );
+        self.addEventListener('install', (e) => self.skipWaiting());
+        self.addEventListener('activate', (e) => {
+          e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
         });
-        self.addEventListener('fetch', (event) => {
-          event.respondWith(
-            fetch(event.request).catch(() => caches.match(event.request))
-          );
-        });
+        self.addEventListener('fetch', (e) => { e.respondWith(fetch(e.request).catch(() => caches.match(e.request))); });
       `;
-
       const blob = new Blob([swCode], { type: 'application/javascript' });
-      const swUrl = URL.createObjectURL(blob);
-
-      navigator.serviceWorker.register(swUrl).then((reg) => {
-        reg.addEventListener('updatefound', () => {
-          const newWorker = reg.installing;
-          if (newWorker) {
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                window.location.reload();
-              }
-            });
-          }
-        });
-      }).catch(err => console.log('SW bypass:', err));
+      navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(err => console.log(err));
     }
 
     function forceAppUpdate() {
-      if ('caches' in window) {
-        caches.keys().then(names => {
-          for (let name of names) caches.delete(name);
-        });
-      }
+      if ('caches' in window) { caches.keys().then(names => names.forEach(n => caches.delete(n))); }
       localStorage.clear();
       window.location.reload(true);
     }
 
-    // --- BASE DE DONNÉES SUPABASE & DONNÉES LOCALES ---
+    // CONFIGURATION SUPABASE
     const SUPABASE_URL = "https://bwirwhcetlfwzqswbfwr.supabase.co";
     const SUPABASE_KEY = "sb_publishable_6f1T8ttm3Lc0yTSqsHUikA_XW5eo3X7";
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const STORAGE_KEY = 'todoapp_tasks_v137';
+    const STORAGE_KEY = 'todoapp_tasks_v138';
 
     let todos = JSON.parse(
       localStorage.getItem(STORAGE_KEY) || 
-      localStorage.getItem('todoapp_tasks_v136') || 
-      localStorage.getItem('todoapp_tasks_v135') || 
-      localStorage.getItem('todoapp_v134') || '[]'
+      localStorage.getItem('todoapp_tasks_v137') || 
+      localStorage.getItem('todoapp_tasks_v136') || '[]'
     );
     let categories = ["Tout", "Général", "Maison", "Jardin", "Voiture", "Aster", "Aimé", "Masquées"];
     let activeCategory = "Tout";
     let currentSort = localStorage.getItem('todoapp_sort') || 'date-desc';
-
     let currentEditing = { id: null, selectedCategory: 'Général', selectedPriority: 0 };
+
+    function showDebugError(msg) {
+      const banner = document.getElementById('debug-banner');
+      const msgEl = document.getElementById('debug-msg');
+      if (banner && msgEl) {
+        msgEl.textContent = "Erreur Supabase: " + msg;
+        banner.classList.remove('hidden');
+      }
+    }
 
     function saveLocal() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
@@ -306,13 +224,10 @@
       return Math.floor((Date.now() % 1000000000)) + Math.floor(Math.random() * 1000);
     }
 
-    // Masquage du splash screen
     const splashStartTime = Date.now();
     function hideSplashScreen() {
       const elapsed = Date.now() - splashStartTime;
-      const minDelay = 500;
-      const remaining = Math.max(0, minDelay - elapsed);
-
+      const remaining = Math.max(0, 500 - elapsed);
       setTimeout(() => {
         const splash = document.getElementById('splash-screen');
         if (splash) {
@@ -334,27 +249,17 @@
     function updateSyncStatus(online, msg) {
       const syncStatus = document.getElementById('sync-status');
       const syncDot = document.getElementById('sync-dot');
-
       if (syncStatus) {
-        if (online) {
-          syncStatus.textContent = "● Synchro Temps Réel";
-          syncStatus.className = "text-emerald-600 font-medium";
-        } else {
-          syncStatus.textContent = "● " + (msg || "Erreur Synchro");
-          syncStatus.className = "text-amber-600 font-medium";
-        }
+        syncStatus.textContent = online ? "● Synchro Temps Réel" : "● " + (msg || "Erreur BDD");
+        syncStatus.className = online ? "text-emerald-600 font-medium" : "text-amber-600 font-medium";
       }
       if (syncDot) {
-        syncDot.className = online 
-          ? "w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0" 
-          : "w-2.5 h-2.5 rounded-full bg-amber-500 inline-block shrink-0";
+        syncDot.className = online ? "w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" : "w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0";
       }
     }
 
-    // Transmission propre vers Supabase
     async function pushTaskToCloud(todo) {
       const isNew = Number(todo.id) > 1000000;
-      
       const payload = {
         text: todo.text || '',
         completed: !!todo.completed,
@@ -374,8 +279,9 @@
           : await supabaseClient.from('todos').upsert([payload]).select();
 
         if (res.error) {
-          console.error("Erreur Supabase Push:", res.error);
-          updateSyncStatus(false, res.error.message || "Erreur Supabase");
+          console.error("Supabase Push Error:", res.error);
+          showDebugError(res.error.message);
+          updateSyncStatus(false, res.error.message);
         } else {
           if (isNew && res.data && res.data.length > 0) {
             updateTaskIdLocally(todo.id, Number(res.data[0].id));
@@ -384,28 +290,25 @@
         }
       } catch (err) {
         console.error("Exception pushTaskToCloud:", err);
-        updateSyncStatus(false, "Réseau indisponible");
+        showDebugError("Erreur Réseau");
+        updateSyncStatus(false, "Hors-ligne");
       }
     }
 
-    // --- SYNCHRONISATION EN TEMPS RÉEL ROBUSTE ---
     let realtimeChannel = null;
-
     function initRealtime() {
       if (realtimeChannel) {
-        try { supabaseClient.removeChannel(realtimeChannel); } catch(e) {}
+        try { supabaseClient.removeChannel(realtimeChannel); } catch(e){}
       }
 
       realtimeChannel = supabaseClient
         .channel('todos_realtime')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'todos' }, () => {
-          syncCloud();
-        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'todos' }, () => syncCloud())
         .subscribe((status) => {
           if (status === 'SUBSCRIBED') {
             updateSyncStatus(true);
           } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-            updateSyncStatus(false, "Canal déconnecté");
+            updateSyncStatus(false, "Canal fermé");
           }
         });
     }
@@ -434,7 +337,8 @@
 
         if (error) {
           console.error("Erreur Sync Supabase:", error);
-          updateSyncStatus(false, error.message || "Erreur Supabase");
+          showDebugError(error.message);
+          updateSyncStatus(false, error.message);
           hideSplashScreen();
           return;
         }
@@ -497,14 +401,14 @@
         }
       } catch (err) {
         console.error("Exception syncCloud:", err);
-        updateSyncStatus(false, "Réseau indisponible");
+        showDebugError("Erreur réseau");
+        updateSyncStatus(false, "Hors-ligne");
       } finally {
         if (syncIcon) syncIcon.classList.remove('animate-spin');
         hideSplashScreen();
       }
     }
 
-    // --- CRÉATION ET MODIFICATION DE TÂCHES ---
     async function addTask(e) {
       e.preventDefault();
       const input = document.getElementById('task-input');
@@ -512,7 +416,6 @@
       if (!text) return;
 
       const targetCat = (activeCategory === 'Tout' || activeCategory === 'Masquées') ? 'Général' : activeCategory;
-
       const newTodo = {
         id: generateSafeId(),
         text: text,
@@ -572,7 +475,6 @@
       if (e) e.stopPropagation();
       const task = todos.find(t => t.id === id);
       if (!task) return;
-
       task.collapsed = !task.collapsed;
       saveLocal();
     }
@@ -594,9 +496,7 @@
       if (parent && parent.completed) {
         parent.completed = false;
         if (!updatedList.some(u => u.id === parent.id)) updatedList.push(parent);
-        if (parent.parent_id) {
-          uncheckAncestors(parent.parent_id, updatedList);
-        }
+        if (parent.parent_id) uncheckAncestors(parent.parent_id, updatedList);
       }
     }
 
@@ -649,16 +549,11 @@
       await syncCloud();
     }
 
-    // --- GESTION DE LA MODALE D'ÉDITION ---
     function openModal(id) {
       const item = todos.find(t => t.id === id);
       if (!item) return;
 
-      currentEditing = {
-        id,
-        selectedCategory: item.category || 'Général',
-        selectedPriority: item.priority || 0
-      };
+      currentEditing = { id, selectedCategory: item.category || 'Général', selectedPriority: item.priority || 0 };
 
       document.getElementById('modal-heading').textContent = item.parent_id ? 'Éditer la sous-tâche' : 'Éditer la tâche';
       document.getElementById('modal-title').value = item.text || '';
@@ -689,7 +584,6 @@
       if (e.target.id === 'edit-modal') closeModal();
     }
 
-    // --- GESTION DE LA MODALE DE RÉGLAGES ---
     function openSettingsModal() {
       const select = document.getElementById('sort-select');
       if (select) select.value = currentSort;
@@ -722,9 +616,7 @@
           ${escapeHtml(cat)}
         </button>
       `).join('') + `
-        <button type="button" onclick="addNewCategory()" class="px-2.5 py-1.5 bg-slate-200 text-slate-700 hover:bg-slate-300 rounded-xl text-xs font-bold">
-          +
-        </button>
+        <button type="button" onclick="addNewCategory()" class="px-2.5 py-1.5 bg-slate-200 text-slate-700 hover:bg-slate-300 rounded-xl text-xs font-bold">+</button>
       `;
     }
 
@@ -751,11 +643,9 @@
       const btns = document.querySelectorAll('.prio-btn');
       btns.forEach(btn => {
         const p = parseInt(btn.getAttribute('data-prio'));
-        if (p === prio) {
-          btn.className = "prio-btn py-2 text-xs font-bold rounded-xl border bg-slate-900 text-white border-slate-900 shadow-sm";
-        } else {
-          btn.className = "prio-btn py-2 text-xs font-bold rounded-xl border border-slate-200 bg-slate-50 text-slate-600";
-        }
+        btn.className = (p === prio) 
+          ? "prio-btn py-2 text-xs font-bold rounded-xl border bg-slate-900 text-white border-slate-900 shadow-sm"
+          : "prio-btn py-2 text-xs font-bold rounded-xl border border-slate-200 bg-slate-50 text-slate-600";
       });
     }
 
@@ -778,10 +668,7 @@
       const currentPart = parts[parts.length - 1].trim().toLowerCase();
       const suggestionsList = document.getElementById('tag-suggestions');
 
-      if (!currentPart) {
-        suggestionsList.classList.add('hidden');
-        return;
-      }
+      if (!currentPart) { suggestionsList.classList.add('hidden'); return; }
 
       const allTags = getAllExistingTags();
       const filtered = allTags.filter(t => t.toLowerCase().includes(currentPart) && !parts.slice(0, -1).map(p => p.trim()).includes(t));
@@ -837,18 +724,13 @@
       }
     }
 
-    // --- RENDU UI DES ONGLETS & ARBORESCENCE ---
     function renderCategoryTabs() {
       const container = document.getElementById('category-tabs');
-      
       let otherCategories = categories.filter(c => c !== 'Masquées');
       let orderedCategories = [...otherCategories, 'Masquées'];
       
       container.innerHTML = orderedCategories.map(cat => `
-        <button 
-          onclick="setCategory('${escapeHtml(cat)}')" 
-          class="px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${activeCategory === cat ? 'bg-slate-900 text-white border-slate-900 shadow-sm' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}"
-        >
+        <button onclick="setCategory('${escapeHtml(cat)}')" class="px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${activeCategory === cat ? 'bg-slate-900 text-white border-slate-900 shadow-sm' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}">
           ${escapeHtml(cat)}
         </button>
       `).join('');
@@ -880,7 +762,6 @@
       return items.sort((a, b) => {
         const timeA = getTaskTime(a);
         const timeB = getTaskTime(b);
-
         if (currentSort === 'date-desc') return timeB - timeA;
         if (currentSort === 'date-asc') return timeA - timeB;
         if (currentSort === 'prio-desc') return (b.priority || 0) - (a.priority || 0) || (timeB - timeA);
@@ -894,11 +775,7 @@
         const isMasquer = t.paused && t.pauseMode === 'masquer';
 
         if (activeCategory === 'Masquées') {
-          if (level === 0) {
-            return isMasquer && t.parent_id === null;
-          } else {
-            return t.parent_id === parentId;
-          }
+          return level === 0 ? (isMasquer && t.parent_id === null) : (t.parent_id === parentId);
         }
 
         if (isMasquer) return false;
@@ -918,7 +795,6 @@
       });
 
       if (items.length === 0) return '';
-
       items = sortTasks(items);
 
       return items.map(todo => {
@@ -926,7 +802,6 @@
         const children = todos.filter(c => c.parent_id === todo.id);
         const hasChildren = children.length > 0;
         const isCollapsed = !!todo.collapsed;
-
         const childrenHTML = (!isCollapsed && hasChildren) ? renderTaskTree(todo.id, level + 1) : '';
 
         let prioBorder = '';
@@ -975,16 +850,15 @@
 
               <div class="flex items-center gap-1 shrink-0">
                 ${hasChildren ? `
-                  <button onclick="toggleCollapse(event, ${todo.id})" class="p-1 text-slate-400 hover:text-slate-900 rounded-lg transition-colors flex items-center justify-center shrink-0" title="${isCollapsed ? 'Déplier' : 'Plier'}">
+                  <button onclick="toggleCollapse(event, ${todo.id})" class="p-1 text-slate-400 hover:text-slate-900 rounded-lg shrink-0" title="${isCollapsed ? 'Déplier' : 'Plier'}">
                     ${arrowSvg}
                   </button>
                 ` : ''}
-                <button onclick="addSubtask(event, ${todo.id})" class="text-slate-400 hover:text-slate-900 font-bold px-2 py-1 text-base rounded-lg transition-colors" title="Ajouter une sous-tâche">+</button>
-                <button onclick="deleteTask(event, ${todo.id})" class="text-slate-400 hover:text-rose-500 font-bold px-2 py-1 text-base rounded-lg transition-colors" title="Supprimer">&times;</button>
+                <button onclick="addSubtask(event, ${todo.id})" class="text-slate-400 hover:text-slate-900 font-bold px-2 py-1 text-base rounded-lg" title="Sous-tâche">+</button>
+                <button onclick="deleteTask(event, ${todo.id})" class="text-slate-400 hover:text-rose-500 font-bold px-2 py-1 text-base rounded-lg" title="Supprimer">&times;</button>
               </div>
             </div>
 
-            <!-- Sous-tâches dépendantes -->
             ${childrenHTML}
           </div>
         `;
@@ -1014,7 +888,6 @@
       }[match]));
     }
 
-    // Initialisation
     renderCategoryTabs();
     render();
     initRealtime();
