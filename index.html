@@ -1,10 +1,10 @@
-<!-- TODOAPP - Version 1.3.8 (890 lignes) -->
+<!-- TODOAPP - Version 1.3.9 (890 lignes) -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>TODOAPP - v1.3.8</title>
+  <title>TODOAPP - v1.3.9</title>
   
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -62,14 +62,14 @@
           <div class="flex items-center gap-2">
             <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">TODOAPP</h1>
             <span id="sync-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0"></span>
-            <span class="text-xs text-slate-400 font-medium">v1.3.8</span>
+            <span class="text-xs text-slate-400 font-medium">v1.3.9</span>
           </div>
           <div class="flex items-center gap-1.5 shrink-0">
             <button onclick="syncCloud()" class="w-8 h-8 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 text-xs font-semibold flex items-center justify-center" title="Synchroniser">
               <span id="sync-icon">🔄</span>
             </button>
             <button onclick="openSettingsModal()" class="w-8 h-8 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 text-xs font-semibold flex items-center justify-center" title="Réglages">
-              <span>⚙️</span>
+              <span>⚙️️</span>
             </button>
           </div>
         </div>
@@ -160,7 +160,7 @@
       <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-200">
         <div>
           <div class="text-xs font-bold text-slate-800">Version de l'application</div>
-          <div class="text-[11px] text-slate-500">v1.3.8 (Cache: todoapp_v138)</div>
+          <div class="text-[11px] text-slate-500">v1.3.9 (Cache: todoapp_v139)</div>
         </div>
         <button onclick="forceAppUpdate()" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800">Forcer MaJ</button>
       </div>
@@ -168,7 +168,7 @@
   </div>
 
   <script>
-    const CACHE_NAME = 'todoapp_v138';
+    const CACHE_NAME = 'todoapp_v139';
 
     if ('serviceWorker' in navigator) {
       const swCode = `
@@ -194,13 +194,34 @@
     const SUPABASE_KEY = "sb_publishable_6f1T8ttm3Lc0yTSqsHUikA_XW5eo3X7";
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const STORAGE_KEY = 'todoapp_tasks_v138';
+    const STORAGE_KEY = 'todoapp_tasks_v139';
 
-    let todos = JSON.parse(
-      localStorage.getItem(STORAGE_KEY) || 
-      localStorage.getItem('todoapp_tasks_v137') || 
-      localStorage.getItem('todoapp_tasks_v136') || '[]'
-    );
+    function generateSafeId() {
+      return Math.floor((Date.now() % 1000000000)) * 1000 + Math.floor(Math.random() * 1000);
+    }
+
+    function sanitizeTodosList(list) {
+      if (!Array.isArray(list)) return [];
+      return list.map(t => {
+        let safeId = Number(t.id);
+        if (!safeId || isNaN(safeId)) safeId = generateSafeId();
+        let safeParentId = t.parent_id ? Number(t.parent_id) : null;
+        if (safeParentId && isNaN(safeParentId)) safeParentId = null;
+
+        return {
+          ...t,
+          id: safeId,
+          parent_id: safeParentId
+        };
+      });
+    }
+
+    let rawLocal = localStorage.getItem(STORAGE_KEY) || 
+                   localStorage.getItem('todoapp_tasks_v138') || 
+                   localStorage.getItem('todoapp_tasks_v137') || '[]';
+    
+    let todos = sanitizeTodosList(JSON.parse(rawLocal));
+
     let categories = ["Tout", "Général", "Maison", "Jardin", "Voiture", "Aster", "Aimé", "Masquées"];
     let activeCategory = "Tout";
     let currentSort = localStorage.getItem('todoapp_sort') || 'date-desc';
@@ -220,10 +241,6 @@
       render();
     }
 
-    function generateSafeId() {
-      return Math.floor((Date.now() % 1000000000)) + Math.floor(Math.random() * 1000);
-    }
-
     const splashStartTime = Date.now();
     function hideSplashScreen() {
       const elapsed = Date.now() - splashStartTime;
@@ -235,15 +252,6 @@
           setTimeout(() => splash.style.display = 'none', 450);
         }
       }, remaining);
-    }
-
-    function updateTaskIdLocally(oldId, newId) {
-      if (oldId === newId) return;
-      todos.forEach(t => {
-        if (t.id === oldId) t.id = newId;
-        if (t.parent_id === oldId) t.parent_id = newId;
-      });
-      saveLocal();
     }
 
     function updateSyncStatus(online, msg) {
@@ -259,8 +267,19 @@
     }
 
     async function pushTaskToCloud(todo) {
+      if (!todo) return;
+      
+      let safeId = Number(todo.id);
+      if (!safeId || isNaN(safeId)) {
+        safeId = generateSafeId();
+        todo.id = safeId;
+      }
+
+      let safeParentId = todo.parent_id ? Number(todo.parent_id) : null;
+      if (safeParentId && isNaN(safeParentId)) safeParentId = null;
+
       const payload = {
-        id: Number(todo.id),
+        id: safeId,
         text: todo.text || '',
         completed: !!todo.completed,
         category: todo.category || 'Général',
@@ -268,7 +287,7 @@
         tags: Array.isArray(todo.tags) ? todo.tags : [],
         notes: todo.notes || '',
         paused: !!todo.paused,
-        parent_id: todo.parent_id ? Number(todo.parent_id) : null
+        parent_id: safeParentId
       };
 
       try {
@@ -340,13 +359,18 @@
 
         if (Array.isArray(data)) {
           const serverMap = new Map();
-          data.forEach(item => serverMap.set(Number(item.id), item));
+          data.forEach(item => {
+            const sId = Number(item.id);
+            if (sId && !isNaN(sId)) serverMap.set(sId, item);
+          });
 
           const mergedTodos = [];
           const processedServerIds = new Set();
 
           todos.forEach(localTask => {
             const lId = Number(localTask.id);
+            if (!lId || isNaN(lId)) return;
+
             if (serverMap.has(lId)) {
               const sItem = serverMap.get(lId);
               processedServerIds.add(lId);
@@ -361,7 +385,7 @@
                 paused: sItem.paused !== undefined ? !!sItem.paused : (localTask.paused || false),
                 pauseMode: localTask.pauseMode || 'griser',
                 collapsed: !!localTask.collapsed,
-                parent_id: sItem.parent_id ? Number(sItem.parent_id) : null,
+                parent_id: (sItem.parent_id && !isNaN(Number(sItem.parent_id))) ? Number(sItem.parent_id) : null,
                 created_at: localTask.created_at || sItem.created_at || new Date().toISOString()
               });
             } else if (lId > 1000000) {
@@ -371,7 +395,7 @@
 
           data.forEach(sItem => {
             const sId = Number(sItem.id);
-            if (!processedServerIds.has(sId)) {
+            if (sId && !isNaN(sId) && !processedServerIds.has(sId)) {
               mergedTodos.push({
                 id: sId,
                 text: sItem.text || sItem.title || '',
@@ -383,13 +407,13 @@
                 paused: !!sItem.paused,
                 pauseMode: 'griser',
                 collapsed: false,
-                parent_id: sItem.parent_id ? Number(sItem.parent_id) : null,
+                parent_id: (sItem.parent_id && !isNaN(Number(sItem.parent_id))) ? Number(sItem.parent_id) : null,
                 created_at: sItem.created_at || new Date().toISOString()
               });
             }
           });
 
-          todos = mergedTodos;
+          todos = sanitizeTodosList(mergedTodos);
           saveLocal();
         }
       } catch (err) {
@@ -434,7 +458,7 @@
 
     async function addSubtask(e, parentId) {
       if (e) e.stopPropagation();
-      const parent = todos.find(t => t.id === parentId);
+      const parent = todos.find(t => t.id === Number(parentId));
       if (!parent) return;
 
       const text = prompt("Nom de la sous-tâche :");
@@ -466,7 +490,7 @@
 
     function toggleCollapse(e, id) {
       if (e) e.stopPropagation();
-      const task = todos.find(t => t.id === id);
+      const task = todos.find(t => t.id === Number(id));
       if (!task) return;
       task.collapsed = !task.collapsed;
       saveLocal();
@@ -495,7 +519,7 @@
 
     async function toggleTask(e, id) {
       if (e) e.stopPropagation();
-      const task = todos.find(t => t.id === id);
+      const task = todos.find(t => t.id === Number(id));
       if (!task) return;
 
       const newStatus = !task.completed;
@@ -505,7 +529,7 @@
       updatedTasks.push(task);
 
       if (newStatus === false) {
-        uncheckDescendants(id, updatedTasks);
+        uncheckDescendants(task.id, updatedTasks);
         if (task.parent_id) uncheckAncestors(task.parent_id, updatedTasks);
       }
 
@@ -519,13 +543,14 @@
 
     async function deleteTask(e, id) {
       if (e) e.stopPropagation();
+      const numericId = Number(id);
       
       const idsToDelete = [];
       function collectIds(targetId) {
         idsToDelete.push(targetId);
         todos.filter(t => t.parent_id === targetId).forEach(child => collectIds(child.id));
       }
-      collectIds(id);
+      collectIds(numericId);
 
       todos = todos.filter(t => !idsToDelete.includes(t.id));
       saveLocal();
@@ -543,10 +568,10 @@
     }
 
     function openModal(id) {
-      const item = todos.find(t => t.id === id);
+      const item = todos.find(t => t.id === Number(id));
       if (!item) return;
 
-      currentEditing = { id, selectedCategory: item.category || 'Général', selectedPriority: item.priority || 0 };
+      currentEditing = { id: item.id, selectedCategory: item.category || 'Général', selectedPriority: item.priority || 0 };
 
       document.getElementById('modal-heading').textContent = item.parent_id ? 'Éditer la sous-tâche' : 'Éditer la tâche';
       document.getElementById('modal-title').value = item.text || '';
