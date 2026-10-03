@@ -1,10 +1,10 @@
-<!-- TODOAPP - Version 1.3.5 - 1018 lignes -->
+<!-- TODOAPP - Version 1.3.6 - 1064 lignes -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>TODOAPP - v1.3.5</title>
+  <title>TODOAPP - v1.3.6</title>
   
   <!-- Configuration PWA & iOS -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -27,12 +27,12 @@
     .scrollbar-none::-webkit-scrollbar { display: none; }
     .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
 
-    /* Forcer 16px sur tous les champs de texte pour désactiver le zoom automatique iOS Safari */
+    /* Desactiver le zoom automatique iOS Safari (police >= 16px sur inputs) */
     input, select, textarea {
       font-size: 16px !important;
     }
 
-    /* Overlay Splash Screen */
+    /* Splash Screen overlay */
     #splash-screen {
       transition: opacity 0.4s ease-out, visibility 0.4s ease-out;
     }
@@ -63,8 +63,8 @@
           <!-- Titre + Pastille Synchro + Version -->
           <div class="flex items-center gap-2">
             <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">TODOAPP</h1>
-            <span id="sync-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0" title="Synchro fonctionnelle"></span>
-            <span class="text-xs text-slate-400 font-medium">v1.3.5</span>
+            <span id="sync-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0" title="Statut de synchronisation"></span>
+            <span class="text-xs text-slate-400 font-medium">v1.3.6</span>
           </div>
 
           <!-- Boutons d'action -->
@@ -217,7 +217,7 @@
       <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-200 pt-3">
         <div>
           <div class="text-xs font-bold text-slate-800">Version de l'application</div>
-          <div class="text-[11px] text-slate-500">v1.3.5 (Cache: todoapp_v135)</div>
+          <div class="text-[11px] text-slate-500">v1.3.6 (Cache: todoapp_v136)</div>
         </div>
         <button onclick="forceAppUpdate()" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-colors shadow-sm">
           Forcer MaJ
@@ -229,7 +229,7 @@
 
   <script>
     // --- SERVICE WORKER ET GESTION DU CACHE PWA ---
-    const CACHE_NAME = 'todoapp_v135';
+    const CACHE_NAME = 'todoapp_v136';
 
     if ('serviceWorker' in navigator) {
       const swCode = `
@@ -274,7 +274,7 @@
           for (let name of names) caches.delete(name);
         });
       }
-      localStorage.removeItem('todoapp_cache_version');
+      localStorage.clear();
       window.location.reload(true);
     }
 
@@ -283,11 +283,11 @@
     const SUPABASE_KEY = "sb_publishable_6f1T8ttm3Lc0yTSqsHUikA_XW5eo3X7";
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // Clé locale unifiée
-    const STORAGE_KEY = 'todoapp_tasks_v135';
+    const STORAGE_KEY = 'todoapp_tasks_v136';
 
     let todos = JSON.parse(
       localStorage.getItem(STORAGE_KEY) || 
+      localStorage.getItem('todoapp_tasks_v135') || 
       localStorage.getItem('todoapp_v134') || 
       localStorage.getItem('todoapp_v133') || 
       localStorage.getItem('todoapp_v132') || '[]'
@@ -307,7 +307,7 @@
       return Math.floor((Date.now() % 1000000000)) + Math.floor(Math.random() * 1000);
     }
 
-    // Masquage fluide du splash screen
+    // Masquage du splash screen
     const splashStartTime = Date.now();
     function hideSplashScreen() {
       const elapsed = Date.now() - splashStartTime;
@@ -323,7 +323,7 @@
       }, remaining);
     }
 
-    // Mise à jour locale de l'ID temporaire vers l'ID réel BDD
+    // Mise à jour de l'ID temporaire vers l'ID réel BDD Supabase
     function updateTaskIdLocally(oldId, newId) {
       if (oldId === newId) return;
       todos.forEach(t => {
@@ -333,11 +333,32 @@
       saveLocal();
     }
 
-    // Envoi propre des colonnes vers Supabase (uniquement les colonnes valides de la BDD)
+    function updateSyncStatus(online, msg) {
+      const syncStatus = document.getElementById('sync-status');
+      const syncDot = document.getElementById('sync-dot');
+
+      if (syncStatus) {
+        if (online) {
+          syncStatus.textContent = "● Synchro Temps Réel";
+          syncStatus.className = "text-emerald-600 font-medium";
+        } else {
+          syncStatus.textContent = "● " + (msg || "Hors-ligne");
+          syncStatus.className = "text-amber-600 font-medium";
+        }
+      }
+      if (syncDot) {
+        syncDot.className = online 
+          ? "w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0" 
+          : "w-2.5 h-2.5 rounded-full bg-amber-500 inline-block shrink-0";
+      }
+    }
+
+    // Envoi sécurisé avec fallback progressif
     async function pushTaskToCloud(todo) {
       const isNew = Number(todo.id) > 1000000;
       
-      const payload = {
+      // 1. Essai avec payload complet
+      const fullPayload = {
         text: todo.text || '',
         completed: !!todo.completed,
         category: todo.category || 'Général',
@@ -347,21 +368,56 @@
         paused: !!todo.paused,
         parent_id: todo.parent_id ? Number(todo.parent_id) : null
       };
-
-      if (!isNew) payload.id = Number(todo.id);
+      if (!isNew) fullPayload.id = Number(todo.id);
 
       try {
-        const result = isNew 
-          ? await supabaseClient.from('todos').insert([payload]).select()
-          : await supabaseClient.from('todos').upsert([payload]).select();
+        let res = isNew 
+          ? await supabaseClient.from('todos').insert([fullPayload]).select()
+          : await supabaseClient.from('todos').upsert([fullPayload]).select();
 
-        if (result.error) {
-          console.error("Erreur Push Supabase:", result.error);
-        } else if (isNew && result.data && result.data.length > 0) {
-          updateTaskIdLocally(todo.id, Number(result.data[0].id));
+        // 2. Fallback sans colonnes optionnelles
+        if (res.error) {
+          console.warn("Premier essai échoué, essai du payload standard:", res.error.message);
+          const stdPayload = {
+            text: todo.text || '',
+            completed: !!todo.completed,
+            category: todo.category || 'Général',
+            parent_id: todo.parent_id ? Number(todo.parent_id) : null
+          };
+          if (!isNew) stdPayload.id = Number(todo.id);
+
+          res = isNew 
+            ? await supabaseClient.from('todos').insert([stdPayload]).select()
+            : await supabaseClient.from('todos').upsert([stdPayload]).select();
+        }
+
+        // 3. Fallback ultra-minimal
+        if (res.error) {
+          console.warn("Deuxième essai échoué, essai du payload minimal:", res.error.message);
+          const minPayload = {
+            text: todo.text || '',
+            completed: !!todo.completed
+          };
+          if (!isNew) minPayload.id = Number(todo.id);
+
+          res = isNew 
+            ? await supabaseClient.from('todos').insert([minPayload]).select()
+            : await supabaseClient.from('todos').upsert([minPayload]).select();
+        }
+
+        if (res.error) {
+          console.error("Erreur d'envoi BDD:", res.error);
+          updateSyncStatus(false, "Erreur BDD");
+        } else if (isNew && res.data && res.data.length > 0) {
+          const realId = Number(res.data[0].id);
+          updateTaskIdLocally(todo.id, realId);
+          updateSyncStatus(true);
+        } else {
+          updateSyncStatus(true);
         }
       } catch (err) {
         console.error("Exception pushTaskToCloud:", err);
+        updateSyncStatus(false, "Erreur réseau");
       }
     }
 
@@ -374,7 +430,7 @@
       }
 
       realtimeChannel = supabaseClient
-        .channel('todos_changes')
+        .channel('todos_realtime')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'todos' }, () => {
           syncCloud();
         })
@@ -382,22 +438,9 @@
           if (status === 'SUBSCRIBED') {
             updateSyncStatus(true);
           } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-            updateSyncStatus(false);
+            updateSyncStatus(false, "Canal déconnecté");
           }
         });
-    }
-
-    function updateSyncStatus(online) {
-      const syncStatus = document.getElementById('sync-status');
-      const syncDot = document.getElementById('sync-dot');
-
-      if (syncStatus) {
-        syncStatus.textContent = online ? "● Synchro Temps Réel" : "● Reconnexion...";
-        syncStatus.className = online ? "text-emerald-600 font-medium" : "text-amber-600 font-medium";
-      }
-      if (syncDot) {
-        syncDot.className = online ? "w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0" : "w-2.5 h-2.5 rounded-full bg-amber-500 inline-block shrink-0";
-      }
     }
 
     // Ré-initialisation propre au retour de veille ou changement d'onglet
@@ -426,7 +469,8 @@
           .select('*');
 
         if (error || !data) {
-          updateSyncStatus(false);
+          console.error("Erreur récuperation Supabase:", error);
+          updateSyncStatus(false, error ? "Erreur BDD" : "Erreur réseau");
           hideSplashScreen();
           return;
         }
@@ -454,17 +498,17 @@
               text: serverItem.text || serverItem.title || localTask.text,
               completed: serverItem.completed !== undefined ? !!serverItem.completed : localTask.completed,
               category: serverItem.category || localTask.category || 'Général',
-              priority: serverItem.priority !== undefined ? Number(serverItem.priority) : localTask.priority,
-              tags: Array.isArray(serverItem.tags) ? serverItem.tags : localTask.tags,
-              notes: serverItem.notes !== undefined ? serverItem.notes : localTask.notes,
-              paused: serverItem.paused !== undefined ? !!serverItem.paused : localTask.paused,
+              priority: serverItem.priority !== undefined ? Number(serverItem.priority) : (localTask.priority || 0),
+              tags: Array.isArray(serverItem.tags) ? serverItem.tags : (localTask.tags || []),
+              notes: serverItem.notes !== undefined ? serverItem.notes : (localTask.notes || ''),
+              paused: serverItem.paused !== undefined ? !!serverItem.paused : (localTask.paused || false),
               pauseMode: localTask.pauseMode || 'griser',
               collapsed: !!localTask.collapsed,
-              parent_id: serverItem.parent_id ? Number(serverItem.parent_id) : localTask.parent_id,
+              parent_id: serverItem.parent_id ? Number(serverItem.parent_id) : (localTask.parent_id || null),
               created_at: localTask.created_at || serverItem.created_at || new Date().toISOString()
             });
           } else if (lId > 1000000) {
-            // Conserver les nouvelles tâches locales en attente d'attribution d'ID BDD
+            // Conserver les tâches locales pas encore confirmées par la BDD
             updatedTodos.push(localTask);
           }
         });
@@ -493,6 +537,7 @@
         saveLocal();
       } catch (err) {
         console.error("Erreur syncCloud:", err);
+        updateSyncStatus(false, "Erreur réseau");
       } finally {
         if (syncIcon) syncIcon.classList.remove('animate-spin');
         hideSplashScreen();
@@ -528,7 +573,7 @@
       saveLocal();
 
       await pushTaskToCloud(newTodo);
-      syncCloud();
+      await syncCloud();
     }
 
     async function addSubtask(e, parentId) {
@@ -560,7 +605,7 @@
       saveLocal();
 
       await pushTaskToCloud(newSub);
-      syncCloud();
+      await syncCloud();
     }
 
     function toggleCollapse(e, id) {
@@ -616,7 +661,7 @@
       for (const t of updatedTasks) {
         await pushTaskToCloud(t);
       }
-      syncCloud();
+      await syncCloud();
     }
 
     async function deleteTask(e, id) {
@@ -634,12 +679,14 @@
 
       try {
         for (const delId of idsToDelete) {
-          await supabaseClient.from('todos').delete().eq('id', delId);
+          if (delId <= 1000000) {
+            await supabaseClient.from('todos').delete().eq('id', delId);
+          }
         }
       } catch (err) {
         console.error("Erreur deleteTask:", err);
       }
-      syncCloud();
+      await syncCloud();
     }
 
     // --- GESTION DE LA MODALE D'ÉDITION ---
@@ -826,7 +873,7 @@
         saveLocal();
         closeModal();
         await pushTaskToCloud(task);
-        syncCloud();
+        await syncCloud();
       }
     }
 
@@ -894,7 +941,6 @@
           }
         }
 
-        // Si la tâche est en pause avec l'option 'masquer', elle ne doit pas apparaître dans les onglets normaux
         if (isMasquer) return false;
 
         if (level === 0) {
