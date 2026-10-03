@@ -1,10 +1,10 @@
-<!-- TODOAPP - Version 1.3.4 - 1034 lignes -->
+<!-- TODOAPP - Version 1.3.5 - 1018 lignes -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>TODOAPP - v1.3.4</title>
+  <title>TODOAPP - v1.3.5</title>
   
   <!-- Configuration PWA & iOS -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -27,12 +27,12 @@
     .scrollbar-none::-webkit-scrollbar { display: none; }
     .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
 
-    /* Forcer 16px sur les inputs pour désactiver le zoom auto iOS Safari */
+    /* Forcer 16px sur tous les champs de texte pour désactiver le zoom automatique iOS Safari */
     input, select, textarea {
       font-size: 16px !important;
     }
 
-    /* Splash Screen overlay */
+    /* Overlay Splash Screen */
     #splash-screen {
       transition: opacity 0.4s ease-out, visibility 0.4s ease-out;
     }
@@ -64,12 +64,12 @@
           <div class="flex items-center gap-2">
             <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">TODOAPP</h1>
             <span id="sync-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0" title="Synchro fonctionnelle"></span>
-            <span class="text-xs text-slate-400 font-medium">v1.3.4</span>
+            <span class="text-xs text-slate-400 font-medium">v1.3.5</span>
           </div>
 
           <!-- Boutons d'action -->
           <div class="flex items-center gap-1.5 shrink-0">
-            <button onclick="syncCloud()" class="w-8 h-8 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 text-xs font-semibold transition-colors flex items-center justify-center" title="Synchroniser">
+            <button onclick="syncCloud()" class="w-8 h-8 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 text-xs font-semibold transition-colors flex items-center justify-center" title="Synchroniser maintenant">
               <span id="sync-icon" class="inline-block leading-none">🔄</span>
             </button>
             <button onclick="openSettingsModal()" class="w-8 h-8 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 text-xs font-semibold transition-colors flex items-center justify-center" title="Réglages">
@@ -198,7 +198,7 @@
         <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-slate-700 text-2xl font-bold">&times;</button>
       </div>
 
-      <!-- Tri de l'affichage avec menu déroulant -->
+      <!-- Tri de l'affichage -->
       <div class="flex items-center justify-between gap-3 p-1">
         <label for="sort-select" class="text-xs font-bold text-slate-700 uppercase shrink-0">Ordre d'affichage</label>
         <select 
@@ -217,7 +217,7 @@
       <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-200 pt-3">
         <div>
           <div class="text-xs font-bold text-slate-800">Version de l'application</div>
-          <div class="text-[11px] text-slate-500">v1.3.4 (Cache: todoapp_v134)</div>
+          <div class="text-[11px] text-slate-500">v1.3.5 (Cache: todoapp_v135)</div>
         </div>
         <button onclick="forceAppUpdate()" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-colors shadow-sm">
           Forcer MaJ
@@ -229,7 +229,7 @@
 
   <script>
     // --- SERVICE WORKER ET GESTION DU CACHE PWA ---
-    const CACHE_NAME = 'todoapp_v134';
+    const CACHE_NAME = 'todoapp_v135';
 
     if ('serviceWorker' in navigator) {
       const swCode = `
@@ -283,7 +283,11 @@
     const SUPABASE_KEY = "sb_publishable_6f1T8ttm3Lc0yTSqsHUikA_XW5eo3X7";
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+    // Clé locale unifiée
+    const STORAGE_KEY = 'todoapp_tasks_v135';
+
     let todos = JSON.parse(
+      localStorage.getItem(STORAGE_KEY) || 
       localStorage.getItem('todoapp_v134') || 
       localStorage.getItem('todoapp_v133') || 
       localStorage.getItem('todoapp_v132') || '[]'
@@ -295,7 +299,7 @@
     let currentEditing = { id: null, selectedCategory: 'Général', selectedPriority: 0 };
 
     function saveLocal() {
-      localStorage.setItem('todoapp_v134', JSON.stringify(todos));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
       render();
     }
 
@@ -307,7 +311,7 @@
     const splashStartTime = Date.now();
     function hideSplashScreen() {
       const elapsed = Date.now() - splashStartTime;
-      const minDelay = 600;
+      const minDelay = 500;
       const remaining = Math.max(0, minDelay - elapsed);
 
       setTimeout(() => {
@@ -319,24 +323,19 @@
       }, remaining);
     }
 
-    // Maintient la cohérence locale entre ID temporaire et ID réel BDD
+    // Mise à jour locale de l'ID temporaire vers l'ID réel BDD
     function updateTaskIdLocally(oldId, newId) {
       if (oldId === newId) return;
-      const subtasksToPush = [];
       todos.forEach(t => {
         if (t.id === oldId) t.id = newId;
-        if (t.parent_id === oldId) {
-          t.parent_id = newId;
-          subtasksToPush.push(t);
-        }
+        if (t.parent_id === oldId) t.parent_id = newId;
       });
       saveLocal();
-      subtasksToPush.forEach(sub => pushTaskToCloud(sub));
     }
 
-    // Envoi vers Supabase
+    // Envoi propre des colonnes vers Supabase (uniquement les colonnes valides de la BDD)
     async function pushTaskToCloud(todo) {
-      const isNew = todo.id > 1000000;
+      const isNew = Number(todo.id) > 1000000;
       
       const payload = {
         text: todo.text || '',
@@ -346,36 +345,23 @@
         tags: Array.isArray(todo.tags) ? todo.tags : [],
         notes: todo.notes || '',
         paused: !!todo.paused,
-        pause_mode: todo.pauseMode || 'griser',
         parent_id: todo.parent_id ? Number(todo.parent_id) : null
       };
 
       if (!isNew) payload.id = Number(todo.id);
 
       try {
-        let result = isNew 
+        const result = isNew 
           ? await supabaseClient.from('todos').insert([payload]).select()
           : await supabaseClient.from('todos').upsert([payload]).select();
 
         if (result.error) {
-          const minPayload = {
-            text: todo.text || '',
-            completed: !!todo.completed,
-            category: todo.category || 'Général',
-            parent_id: todo.parent_id ? Number(todo.parent_id) : null
-          };
-          if (!isNew) minPayload.id = Number(todo.id);
-
-          result = isNew 
-            ? await supabaseClient.from('todos').insert([minPayload]).select()
-            : await supabaseClient.from('todos').upsert([minPayload]).select();
-        }
-
-        if (isNew && !result.error && result.data && result.data.length > 0) {
+          console.error("Erreur Push Supabase:", result.error);
+        } else if (isNew && result.data && result.data.length > 0) {
           updateTaskIdLocally(todo.id, Number(result.data[0].id));
         }
       } catch (err) {
-        console.error("Erreur pushTaskToCloud:", err);
+        console.error("Exception pushTaskToCloud:", err);
       }
     }
 
@@ -384,10 +370,11 @@
 
     function initRealtime() {
       if (realtimeChannel) {
-        supabaseClient.removeChannel(realtimeChannel);
+        try { supabaseClient.removeChannel(realtimeChannel); } catch(e) {}
       }
+
       realtimeChannel = supabaseClient
-        .channel('public:todos')
+        .channel('todos_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'todos' }, () => {
           syncCloud();
         })
@@ -413,7 +400,7 @@
       }
     }
 
-    // Reconnexion automatique au retour sur l'app (sortie de veille / changement d'onglet)
+    // Ré-initialisation propre au retour de veille ou changement d'onglet
     window.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
         initRealtime();
@@ -428,11 +415,6 @@
       initRealtime();
       syncCloud();
     });
-
-    // Polling de sécurité toutes les 8 secondes pour parer les déconnexions discrètes d'iOS
-    setInterval(() => {
-      syncCloud();
-    }, 8000);
 
     async function syncCloud() {
       const syncIcon = document.getElementById('sync-icon');
@@ -453,19 +435,22 @@
 
         const serverMap = new Map();
         data.forEach(item => {
-          if (item.id) serverMap.set(Number(item.id), item);
+          if (item.id !== undefined && item.id !== null) {
+            serverMap.set(Number(item.id), item);
+          }
         });
 
         const updatedTodos = [];
         const processedServerIds = new Set();
 
         todos.forEach(localTask => {
-          if (serverMap.has(localTask.id)) {
-            const serverItem = serverMap.get(localTask.id);
-            processedServerIds.add(localTask.id);
+          const lId = Number(localTask.id);
+          if (serverMap.has(lId)) {
+            const serverItem = serverMap.get(lId);
+            processedServerIds.add(lId);
 
             updatedTodos.push({
-              id: localTask.id,
+              id: lId,
               text: serverItem.text || serverItem.title || localTask.text,
               completed: serverItem.completed !== undefined ? !!serverItem.completed : localTask.completed,
               category: serverItem.category || localTask.category || 'Général',
@@ -473,20 +458,20 @@
               tags: Array.isArray(serverItem.tags) ? serverItem.tags : localTask.tags,
               notes: serverItem.notes !== undefined ? serverItem.notes : localTask.notes,
               paused: serverItem.paused !== undefined ? !!serverItem.paused : localTask.paused,
-              pauseMode: serverItem.pause_mode || serverItem.pauseMode || localTask.pauseMode || 'griser',
+              pauseMode: localTask.pauseMode || 'griser',
               collapsed: !!localTask.collapsed,
               parent_id: serverItem.parent_id ? Number(serverItem.parent_id) : localTask.parent_id,
               created_at: localTask.created_at || serverItem.created_at || new Date().toISOString()
             });
-          } else if (localTask.id > 1000000) {
-            // Garde les nouvelles tâches locales pas encore confirmées en BDD
+          } else if (lId > 1000000) {
+            // Conserver les nouvelles tâches locales en attente d'attribution d'ID BDD
             updatedTodos.push(localTask);
           }
         });
 
         data.forEach(serverItem => {
           const sId = Number(serverItem.id);
-          if (!processedServerIds.has(sId) && !todos.some(t => t.id === sId)) {
+          if (!processedServerIds.has(sId)) {
             updatedTodos.push({
               id: sId,
               text: serverItem.text || serverItem.title || '',
@@ -496,7 +481,7 @@
               tags: Array.isArray(serverItem.tags) ? serverItem.tags : [],
               notes: serverItem.notes || '',
               paused: !!serverItem.paused,
-              pauseMode: serverItem.pause_mode || serverItem.pauseMode || 'griser',
+              pauseMode: 'griser',
               collapsed: false,
               parent_id: serverItem.parent_id ? Number(serverItem.parent_id) : null,
               created_at: serverItem.created_at || new Date().toISOString()
@@ -899,7 +884,7 @@
 
     function renderTaskTree(parentId = null, level = 0) {
       let items = todos.filter(t => {
-        const isMasquer = t.paused && (t.pauseMode === 'masquer' || t.pause_mode === 'masquer');
+        const isMasquer = t.paused && t.pauseMode === 'masquer';
 
         if (activeCategory === 'Masquées') {
           if (level === 0) {
@@ -928,11 +913,10 @@
 
       if (items.length === 0) return '';
 
-      // Tri selon l'option choisie
       items = sortTasks(items);
 
       return items.map(todo => {
-        const isGriser = todo.paused && (todo.pauseMode !== 'masquer' && todo.pause_mode !== 'masquer');
+        const isGriser = todo.paused && todo.pauseMode !== 'masquer';
         const children = todos.filter(c => c.parent_id === todo.id);
         const hasChildren = children.length > 0;
         const isCollapsed = !!todo.collapsed;
