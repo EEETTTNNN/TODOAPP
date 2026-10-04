@@ -1,10 +1,10 @@
-<!-- TODOAPP - Version 1.4.1 (920 lignes) -->
+<!-- TODOAPP - Version 1.4.0 -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>TODOAPP - v1.4.1</title>
+  <title>TODOAPP - v1.4.0</title>
   
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -62,7 +62,7 @@
           <div class="flex items-center gap-2">
             <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">TODOAPP</h1>
             <span id="sync-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0"></span>
-            <span class="text-xs text-slate-400 font-medium">v1.4.1</span>
+            <span class="text-xs text-slate-400 font-medium">v1.4.0</span>
           </div>
           <div class="flex items-center gap-1.5 shrink-0">
             <button onclick="syncCloud()" class="w-8 h-8 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 text-xs font-semibold flex items-center justify-center" title="Synchroniser">
@@ -77,7 +77,7 @@
       </header>
 
       <form onsubmit="addTask(event)" class="flex gap-1.5 mb-4">
-        <input type="text" id="task-input" placeholder="Ajouter une tâche... (tape $ pour lier une tâche)" oninput="handleLinkAutocomplete(event)" class="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-900" required>
+        <input type="text" id="task-input" placeholder="Ajouter une tâche..." class="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-900" required>
         <button type="submit" class="bg-slate-900 text-white rounded-xl px-3 py-1.5 font-bold text-sm hover:bg-slate-800">+</button>
       </form>
 
@@ -99,7 +99,7 @@
       </div>
       <div>
         <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Titre</label>
-        <textarea id="modal-title" rows="2" oninput="handleLinkAutocomplete(event)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 resize-none"></textarea>
+        <textarea id="modal-title" rows="2" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 resize-none"></textarea>
       </div>
       <div>
         <label class="block text-xs font-bold text-slate-500 uppercase mb-1.5">Catégorie</label>
@@ -122,7 +122,7 @@
       </div>
       <div>
         <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Notes</label>
-        <textarea id="modal-notes" rows="3" placeholder="Notes... (tape $ pour lier une tâche)" oninput="handleLinkAutocomplete(event)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 resize-none"></textarea>
+        <textarea id="modal-notes" rows="3" placeholder="Notes..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 resize-none"></textarea>
       </div>
       <div class="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
         <label class="flex items-center justify-between cursor-pointer">
@@ -160,18 +160,15 @@
       <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-200">
         <div>
           <div class="text-xs font-bold text-slate-800">Version de l'application</div>
-          <div class="text-[11px] text-slate-500">v1.4.1 (Cache: todoapp_v141)</div>
+          <div class="text-[11px] text-slate-500">v1.4.0 (Cache: todoapp_v140)</div>
         </div>
         <button onclick="forceAppUpdate()" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800">Forcer MaJ</button>
       </div>
     </div>
   </div>
 
-  <!-- MENU FLOTTANT AUTOCOMPLÉTION DES LIENS ($) -->
-  <ul id="link-suggestions" class="hidden fixed z-[120] bg-white border border-slate-200 rounded-xl shadow-xl max-h-48 overflow-y-auto"></ul>
-
   <script>
-    const CACHE_NAME = 'todoapp_v141';
+    const CACHE_NAME = 'todoapp_v140';
 
     if ('serviceWorker' in navigator) {
       const swCode = `
@@ -197,7 +194,7 @@
     const SUPABASE_KEY = "sb_publishable_6f1T8ttm3Lc0yTSqsHUikA_XW5eo3X7";
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const STORAGE_KEY = 'todoapp_tasks_v141';
+    const STORAGE_KEY = 'todoapp_tasks_v140';
 
     function generateSafeId() {
       return Math.floor((Date.now() % 1000000000)) * 1000 + Math.floor(Math.random() * 1000);
@@ -221,7 +218,6 @@
     }
 
     let rawLocal = localStorage.getItem(STORAGE_KEY) || 
-                   localStorage.getItem('todoapp_tasks_v140') || 
                    localStorage.getItem('todoapp_tasks_v139') || 
                    localStorage.getItem('todoapp_tasks_v138') || '[]';
     
@@ -231,9 +227,6 @@
     let activeCategory = "Tout";
     let currentSort = localStorage.getItem('todoapp_sort') || 'date-desc';
     let currentEditing = { id: null, selectedCategory: 'Général', selectedPriority: 0 };
-
-    let activeLinkInput = null;
-    let activeLinkDollarIndex = -1;
 
     function showDebugError(msg) {
       const banner = document.getElementById('debug-banner');
@@ -598,4 +591,323 @@
     }
 
     function closeModal() {
-      document.getElementById
+      document.getElementById('edit-modal').classList.add('hidden');
+      document.getElementById('edit-modal').classList.remove('flex');
+      document.getElementById('tag-suggestions').classList.add('hidden');
+    }
+
+    function closeModalOnOut(e) {
+      if (e.target.id === 'edit-modal') closeModal();
+    }
+
+    function openSettingsModal() {
+      const select = document.getElementById('sort-select');
+      if (select) select.value = currentSort;
+      document.getElementById('settings-modal').classList.remove('hidden');
+      document.getElementById('settings-modal').classList.add('flex');
+    }
+
+    function closeSettingsModal() {
+      document.getElementById('settings-modal').classList.add('hidden');
+      document.getElementById('settings-modal').classList.remove('flex');
+    }
+
+    function closeSettingsModalOnOut(e) {
+      if (e.target.id === 'settings-modal') closeSettingsModal();
+    }
+
+    function setSortOption(opt) {
+      currentSort = opt;
+      localStorage.setItem('todoapp_sort', opt);
+      render();
+    }
+
+    function renderModalCategories() {
+      const container = document.getElementById('modal-categories-container');
+      const catsToDisplay = categories.filter(c => c !== 'Tout' && c !== 'Masquées');
+
+      container.innerHTML = catsToDisplay.map(cat => `
+        <button type="button" onclick="selectModalCategory('${escapeHtml(cat)}')" 
+          class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${currentEditing.selectedCategory === cat ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 text-slate-600 border-slate-200'}">
+          ${escapeHtml(cat)}
+        </button>
+      `).join('') + `
+        <button type="button" onclick="addNewCategory()" class="px-2.5 py-1.5 bg-slate-200 text-slate-700 hover:bg-slate-300 rounded-xl text-xs font-bold">+</button>
+      `;
+    }
+
+    function selectModalCategory(cat) {
+      currentEditing.selectedCategory = cat;
+      renderModalCategories();
+    }
+
+    function addNewCategory() {
+      const name = prompt("Nom de la nouvelle catégorie :");
+      if (name && name.trim()) {
+        const clean = name.trim();
+        if (!categories.includes(clean)) {
+          categories.splice(categories.length - 1, 0, clean);
+          currentEditing.selectedCategory = clean;
+          renderCategoryTabs();
+          renderModalCategories();
+        }
+      }
+    }
+
+    function setModalPriority(prio) {
+      currentEditing.selectedPriority = prio;
+      const btns = document.querySelectorAll('.prio-btn');
+      btns.forEach(btn => {
+        const p = parseInt(btn.getAttribute('data-prio'));
+        btn.className = (p === prio) 
+          ? "prio-btn py-2 text-xs font-bold rounded-xl border bg-slate-900 text-white border-slate-900 shadow-sm"
+          : "prio-btn py-2 text-xs font-bold rounded-xl border border-slate-200 bg-slate-50 text-slate-600";
+      });
+    }
+
+    function togglePauseOptions() {
+      const isPaused = document.getElementById('modal-paused').checked;
+      const opt = document.getElementById('pause-options');
+      if (isPaused) opt.classList.remove('hidden');
+      else opt.classList.add('hidden');
+    }
+
+    function getAllExistingTags() {
+      const tagsSet = new Set();
+      todos.forEach(t => (t.tags || []).forEach(tag => tagsSet.add(tag)));
+      return Array.from(tagsSet);
+    }
+
+    function handleTagAutocomplete(e) {
+      const val = e.target.value;
+      const parts = val.split(',');
+      const currentPart = parts[parts.length - 1].trim().toLowerCase();
+      const suggestionsList = document.getElementById('tag-suggestions');
+
+      if (!currentPart) { suggestionsList.classList.add('hidden'); return; }
+
+      const allTags = getAllExistingTags();
+      const filtered = allTags.filter(t => t.toLowerCase().includes(currentPart) && !parts.slice(0, -1).map(p => p.trim()).includes(t));
+
+      if (filtered.length > 0) {
+        suggestionsList.innerHTML = filtered.map(tag => `
+          <li class="px-3 py-2 text-xs font-medium hover:bg-slate-100 cursor-pointer border-b border-slate-50 last:border-0" onclick="insertTagSuggestion('${escapeHtml(tag)}')">
+            #${escapeHtml(tag)}
+          </li>
+        `).join('');
+        suggestionsList.classList.remove('hidden');
+      } else {
+        suggestionsList.classList.add('hidden');
+      }
+    }
+
+    function insertTagSuggestion(tag) {
+      const input = document.getElementById('modal-tags');
+      const parts = input.value.split(',');
+      parts[parts.length - 1] = ' ' + tag;
+      input.value = parts.join(', ') + ', ';
+      document.getElementById('tag-suggestions').classList.add('hidden');
+      input.focus();
+    }
+
+    async function saveModal() {
+      const title = document.getElementById('modal-title').value.trim();
+      if (!title) return;
+
+      const rawTags = document.getElementById('modal-tags').value;
+      const tags = rawTags.split(',').map(t => t.trim()).filter(Boolean);
+      const notes = document.getElementById('modal-notes').value.trim();
+      const paused = document.getElementById('modal-paused').checked;
+
+      const pauseModes = document.getElementsByName('pause-mode');
+      let pauseMode = 'griser';
+      pauseModes.forEach(r => { if (r.checked) pauseMode = r.value; });
+
+      const task = todos.find(t => t.id === currentEditing.id);
+      if (task) {
+        task.text = title;
+        task.category = currentEditing.selectedCategory;
+        task.priority = currentEditing.selectedPriority;
+        task.tags = tags;
+        task.notes = notes;
+        task.paused = paused;
+        task.pauseMode = pauseMode;
+
+        saveLocal();
+        closeModal();
+        await pushTaskToCloud(task);
+        await syncCloud();
+      }
+    }
+
+    function renderCategoryTabs() {
+      const container = document.getElementById('category-tabs');
+      let otherCategories = categories.filter(c => c !== 'Masquées');
+      let orderedCategories = [...otherCategories, 'Masquées'];
+      
+      container.innerHTML = orderedCategories.map(cat => `
+        <button onclick="setCategory('${escapeHtml(cat)}')" class="px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${activeCategory === cat ? 'bg-slate-900 text-white border-slate-900 shadow-sm' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}">
+          ${escapeHtml(cat)}
+        </button>
+      `).join('');
+    }
+
+    function setCategory(cat) {
+      activeCategory = cat;
+      renderCategoryTabs();
+      render();
+    }
+
+    function hasAncestorWithCategory(parentId, categoryName) {
+      if (!parentId) return false;
+      const parent = todos.find(t => t.id === parentId);
+      if (!parent) return false;
+      if (parent.category === categoryName) return true;
+      return hasAncestorWithCategory(parent.parent_id, categoryName);
+    }
+
+    function getTaskTime(t) {
+      if (t.created_at) {
+        const time = new Date(t.created_at).getTime();
+        if (!isNaN(time)) return time;
+      }
+      return t.id || 0;
+    }
+
+    function sortTasks(items) {
+      return items.sort((a, b) => {
+        const timeA = getTaskTime(a);
+        const timeB = getTaskTime(b);
+        if (currentSort === 'date-desc') return timeB - timeA;
+        if (currentSort === 'date-asc') return timeA - timeB;
+        if (currentSort === 'prio-desc') return (b.priority || 0) - (a.priority || 0) || (timeB - timeA);
+        if (currentSort === 'prio-asc') return (a.priority || 0) - (b.priority || 0) || (timeB - timeA);
+        return 0;
+      });
+    }
+
+    function renderTaskTree(parentId = null, level = 0) {
+      let items = todos.filter(t => {
+        const isMasquer = t.paused && t.pauseMode === 'masquer';
+
+        if (activeCategory === 'Masquées') {
+          return level === 0 ? (isMasquer && t.parent_id === null) : (t.parent_id === parentId);
+        }
+
+        if (isMasquer) return false;
+
+        if (level === 0) {
+          if (activeCategory === 'Tout') {
+            if (t.parent_id !== null) return false;
+          } else {
+            if (t.category !== activeCategory) return false;
+            if (hasAncestorWithCategory(t.parent_id, activeCategory)) return false;
+          }
+        } else {
+          if (t.parent_id !== parentId) return false;
+        }
+
+        return true;
+      });
+
+      if (items.length === 0) return '';
+      items = sortTasks(items);
+
+      return items.map(todo => {
+        const isGriser = todo.paused && todo.pauseMode !== 'masquer';
+        const children = todos.filter(c => c.parent_id === todo.id);
+        const hasChildren = children.length > 0;
+        const isCollapsed = !!todo.collapsed;
+        const childrenHTML = (!isCollapsed && hasChildren) ? renderTaskTree(todo.id, level + 1) : '';
+
+        let prioBorder = '';
+        if (todo.priority === 1) prioBorder = 'border-l-4 border-l-slate-400';
+        else if (todo.priority === 2) prioBorder = 'border-l-4 border-l-blue-500';
+        else if (todo.priority === 3) prioBorder = 'border-l-4 border-l-orange-500';
+        else if (todo.priority === 4) prioBorder = 'border-l-4 border-l-red-500';
+
+        const arrowSvg = isCollapsed 
+          ? `<svg class="w-4 h-4 text-slate-500 fill-current" viewBox="0 0 20 20"><path d="M6 4l10 6-10 6V4z"/></svg>`
+          : `<svg class="w-4 h-4 text-slate-500 fill-current" viewBox="0 0 20 20"><path d="M4 6l6 10 6-10H4z"/></svg>`;
+
+        return `
+          <div class="${level > 0 ? 'ml-4 mt-2 pl-2 border-l-2 border-slate-200/70' : 'mt-2.5'}">
+            <div 
+              onclick="openModal(${todo.id})"
+              class="flex items-start justify-between gap-2.5 p-3 rounded-2xl border transition-all cursor-pointer ${
+                todo.completed ? 'bg-slate-50 border-slate-100 opacity-60' : 
+                isGriser ? 'bg-slate-100/70 border-slate-200 opacity-50' : 
+                'bg-white border-slate-200 shadow-sm hover:border-slate-300'
+              } ${prioBorder}"
+            >
+              <input 
+                type="checkbox" 
+                ${todo.completed ? 'checked' : ''} 
+                class="w-5 h-5 accent-slate-900 rounded cursor-pointer mt-0.5"
+                onclick="toggleTask(event, ${todo.id})"
+              >
+
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-sm font-semibold ${todo.completed ? 'line-through text-slate-400' : 'text-slate-800'}">
+                    ${escapeHtml(todo.text)}
+                  </span>
+                  ${todo.paused ? `<span class="text-[10px] font-bold px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-md">PAUSE</span>` : ''}
+                  ${hasChildren && isCollapsed ? `<span class="text-[10px] font-bold px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded-md">+${children.length} masquée${children.length > 1 ? 's' : ''}</span>` : ''}
+                </div>
+
+                <div class="flex flex-wrap gap-1 mt-1">
+                  <span class="text-[10px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md">${escapeHtml(todo.category)}</span>
+                  ${(todo.tags || []).map(tag => `<span class="text-[10px] font-bold bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-md">#${escapeHtml(tag)}</span>`).join('')}
+                </div>
+
+                ${todo.notes ? `<p class="text-xs text-slate-500 mt-1.5 italic bg-slate-50 p-2 rounded-xl border border-slate-100">${escapeHtml(todo.notes)}</p>` : ''}
+              </div>
+
+              <div class="flex items-center gap-1 shrink-0">
+                ${hasChildren ? `
+                  <button onclick="toggleCollapse(event, ${todo.id})" class="p-1 text-slate-400 hover:text-slate-900 rounded-lg shrink-0" title="${isCollapsed ? 'Déplier' : 'Plier'}">
+                    ${arrowSvg}
+                  </button>
+                ` : ''}
+                <button onclick="addSubtask(event, ${todo.id})" class="text-slate-400 hover:text-slate-900 font-bold px-2 py-1 text-base rounded-lg" title="Sous-tâche">+</button>
+                <button onclick="deleteTask(event, ${todo.id})" class="text-slate-400 hover:text-rose-500 font-bold px-2 py-1 text-base rounded-lg" title="Supprimer">&times;</button>
+              </div>
+            </div>
+
+            ${childrenHTML}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function render() {
+      const treeContainer = document.getElementById('task-tree');
+      const countEl = document.getElementById('task-count');
+
+      const html = renderTaskTree(null, 0);
+
+      if (!html) {
+        treeContainer.innerHTML = `<p class="text-center text-slate-400 text-sm py-8">Aucune tâche dans cette catégorie</p>`;
+      } else {
+        treeContainer.innerHTML = html;
+      }
+
+      const activeCount = todos.filter(t => !t.completed).length;
+      countEl.textContent = `${activeCount} tâche${activeCount > 1 ? 's' : ''} restante${activeCount > 1 ? 's' : ''}`;
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/[&<>"']/g, match => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[match]));
+    }
+
+    renderCategoryTabs();
+    render();
+    initRealtime();
+    syncCloud();
+  </script>
+</body>
+</html>
