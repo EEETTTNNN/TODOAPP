@@ -1,10 +1,10 @@
-<!-- TODOAPP - Version 1.4.0 -->
+<!-- TODOAPP - Version 1.4.1 -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>TODOAPP - v1.4.0</title>
+  <title>TODOAPP - v1.4.1</title>
   
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -40,9 +40,21 @@
       opacity: 0;
       visibility: hidden;
     }
+    @keyframes highlightPulse {
+      0% { background-color: rgba(250, 204, 21, 0.6); transform: scale(1.02); box-shadow: 0 0 15px rgba(250, 204, 21, 0.4); }
+      100% { background-color: transparent; transform: scale(1); box-shadow: none; }
+    }
+    .highlight-task {
+      animation: highlightPulse 1.5s ease-out;
+      z-index: 10;
+      position: relative;
+    }
   </style>
 </head>
-<body class="bg-white text-slate-800 font-sans min-h-screen">
+<body class="bg-white text-slate-800 font-sans min-h-screen relative">
+
+  <!-- SUGGESTIONS DE LIENS DE TÂCHES (Autocomplétion $) -->
+  <ul id="task-link-suggestions" class="hidden absolute bg-white border border-slate-200 rounded-xl shadow-2xl z-[200] max-h-40 overflow-y-auto w-64 text-sm"></ul>
 
   <!-- BANDEAU D'ALERTE DIAGNOSTIC BDD -->
   <div id="debug-banner" class="hidden bg-rose-600 text-white text-xs font-bold px-4 py-2 text-center fixed top-0 left-0 right-0 z-[110] shadow-md flex justify-between items-center">
@@ -62,7 +74,7 @@
           <div class="flex items-center gap-2">
             <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">TODOAPP</h1>
             <span id="sync-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0"></span>
-            <span class="text-xs text-slate-400 font-medium">v1.4.0</span>
+            <span class="text-xs text-slate-400 font-medium">v1.4.1</span>
           </div>
           <div class="flex items-center gap-1.5 shrink-0">
             <button onclick="syncCloud()" class="w-8 h-8 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 text-xs font-semibold flex items-center justify-center" title="Synchroniser">
@@ -76,12 +88,12 @@
         <div class="flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-slate-100 scrollbar-none" id="category-tabs"></div>
       </header>
 
-      <form onsubmit="addTask(event)" class="flex gap-1.5 mb-4">
-        <input type="text" id="task-input" placeholder="Ajouter une tâche..." class="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-900" required>
+      <form onsubmit="addTask(event)" class="flex gap-1.5 mb-4 relative">
+        <input type="text" id="task-input" placeholder="Ajouter une tâche... (utilisez $ pour lier)" oninput="handleTaskLinkAutocomplete(event)" class="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-900" required>
         <button type="submit" class="bg-slate-900 text-white rounded-xl px-3 py-1.5 font-bold text-sm hover:bg-slate-800">+</button>
       </form>
 
-      <div id="task-tree" class="space-y-3"></div>
+      <div id="task-tree" class="space-y-3 pb-8"></div>
     </div>
 
     <footer class="mt-8 pt-4 border-t border-slate-100 text-xs text-slate-400 flex justify-between items-center pb-6">
@@ -97,9 +109,9 @@
         <h3 class="font-extrabold text-lg text-slate-900" id="modal-heading">Éditer la tâche</h3>
         <button onclick="closeModal()" class="text-slate-400 hover:text-slate-700 text-2xl font-bold">&times;</button>
       </div>
-      <div>
+      <div class="relative">
         <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Titre</label>
-        <textarea id="modal-title" rows="2" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 resize-none"></textarea>
+        <textarea id="modal-title" oninput="handleTaskLinkAutocomplete(event)" rows="2" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 resize-none"></textarea>
       </div>
       <div>
         <label class="block text-xs font-bold text-slate-500 uppercase mb-1.5">Catégorie</label>
@@ -120,9 +132,9 @@
         <input type="text" id="modal-tags" placeholder="ex: maison, urgent..." oninput="handleTagAutocomplete(event)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900">
         <ul id="tag-suggestions" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-20 max-h-32 overflow-y-auto"></ul>
       </div>
-      <div>
+      <div class="relative">
         <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Notes</label>
-        <textarea id="modal-notes" rows="3" placeholder="Notes..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 resize-none"></textarea>
+        <textarea id="modal-notes" oninput="handleTaskLinkAutocomplete(event)" rows="3" placeholder="Notes..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 resize-none"></textarea>
       </div>
       <div class="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
         <label class="flex items-center justify-between cursor-pointer">
@@ -160,7 +172,7 @@
       <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-200">
         <div>
           <div class="text-xs font-bold text-slate-800">Version de l'application</div>
-          <div class="text-[11px] text-slate-500">v1.4.0 (Cache: todoapp_v140)</div>
+          <div class="text-[11px] text-slate-500">v1.4.1 (Cache: todoapp_v141)</div>
         </div>
         <button onclick="forceAppUpdate()" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800">Forcer MaJ</button>
       </div>
@@ -168,7 +180,7 @@
   </div>
 
   <script>
-    const CACHE_NAME = 'todoapp_v140';
+    const CACHE_NAME = 'todoapp_v141';
 
     if ('serviceWorker' in navigator) {
       const swCode = `
@@ -194,7 +206,7 @@
     const SUPABASE_KEY = "sb_publishable_6f1T8ttm3Lc0yTSqsHUikA_XW5eo3X7";
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const STORAGE_KEY = 'todoapp_tasks_v140';
+    const STORAGE_KEY = 'todoapp_tasks_v141';
 
     function generateSafeId() {
       return Math.floor((Date.now() % 1000000000)) * 1000 + Math.floor(Math.random() * 1000);
@@ -218,8 +230,7 @@
     }
 
     let rawLocal = localStorage.getItem(STORAGE_KEY) || 
-                   localStorage.getItem('todoapp_tasks_v139') || 
-                   localStorage.getItem('todoapp_tasks_v138') || '[]';
+                   localStorage.getItem('todoapp_tasks_v140') || '[]';
     
     let todos = sanitizeTodosList(JSON.parse(rawLocal));
 
@@ -227,6 +238,8 @@
     let activeCategory = "Tout";
     let currentSort = localStorage.getItem('todoapp_sort') || 'date-desc';
     let currentEditing = { id: null, selectedCategory: 'Général', selectedPriority: 0 };
+    
+    let currentLinkInput = null;
 
     function showDebugError(msg) {
       const banner = document.getElementById('debug-banner');
@@ -269,13 +282,8 @@
 
     async function pushTaskToCloud(todo) {
       if (!todo) return;
-      
       let safeId = Number(todo.id);
-      if (!safeId || isNaN(safeId)) {
-        safeId = generateSafeId();
-        todo.id = safeId;
-      }
-
+      if (!safeId || isNaN(safeId)) { safeId = generateSafeId(); todo.id = safeId; }
       let safeParentId = todo.parent_id ? Number(todo.parent_id) : null;
       if (safeParentId && isNaN(safeParentId)) safeParentId = null;
 
@@ -294,14 +302,11 @@
 
       try {
         const res = await supabaseClient.from('todos').upsert([payload]).select();
-
         if (res.error) {
           console.error("Supabase Push Error:", res.error);
           showDebugError(res.error.message);
           updateSyncStatus(false, res.error.message);
-        } else {
-          updateSyncStatus(true);
-        }
+        } else updateSyncStatus(true);
       } catch (err) {
         console.error("Exception pushTaskToCloud:", err);
         showDebugError("Erreur Réseau");
@@ -314,33 +319,18 @@
       if (realtimeChannel) {
         try { supabaseClient.removeChannel(realtimeChannel); } catch(e){}
       }
-
       realtimeChannel = supabaseClient
         .channel('todos_realtime')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'todos' }, () => syncCloud())
         .subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            updateSyncStatus(true);
-          } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-            updateSyncStatus(false, "Canal fermé");
-          }
+          if (status === 'SUBSCRIBED') updateSyncStatus(true);
+          else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') updateSyncStatus(false, "Canal fermé");
         });
     }
 
-    window.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') {
-        initRealtime();
-        syncCloud();
-      }
-    });
-    window.addEventListener('focus', () => {
-      initRealtime();
-      syncCloud();
-    });
-    window.addEventListener('online', () => {
-      initRealtime();
-      syncCloud();
-    });
+    window.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { initRealtime(); syncCloud(); } });
+    window.addEventListener('focus', () => { initRealtime(); syncCloud(); });
+    window.addEventListener('online', () => { initRealtime(); syncCloud(); });
 
     async function syncCloud() {
       const syncIcon = document.getElementById('sync-icon');
@@ -348,7 +338,6 @@
 
       try {
         const { data, error } = await supabaseClient.from('todos').select('*');
-
         if (error) {
           console.error("Erreur Sync Supabase:", error);
           showDebugError(error.message);
@@ -358,21 +347,15 @@
         }
 
         updateSyncStatus(true);
-
         if (Array.isArray(data)) {
           const serverMap = new Map();
-          data.forEach(item => {
-            const sId = Number(item.id);
-            if (sId && !isNaN(sId)) serverMap.set(sId, item);
-          });
-
+          data.forEach(item => { const sId = Number(item.id); if (sId && !isNaN(sId)) serverMap.set(sId, item); });
           const mergedTodos = [];
           const processedServerIds = new Set();
 
           todos.forEach(localTask => {
             const lId = Number(localTask.id);
             if (!lId || isNaN(lId)) return;
-
             if (serverMap.has(lId)) {
               const sItem = serverMap.get(lId);
               processedServerIds.add(lId);
@@ -412,7 +395,6 @@
               });
             }
           });
-
           todos = sanitizeTodosList(mergedTodos);
           saveLocal();
         }
@@ -431,27 +413,15 @@
       const input = document.getElementById('task-input');
       const text = input.value.trim();
       if (!text) return;
-
       const targetCat = (activeCategory === 'Tout' || activeCategory === 'Masquées') ? 'Général' : activeCategory;
       const newTodo = {
         id: generateSafeId(),
-        text: text,
-        completed: false,
-        category: targetCat,
-        priority: 0,
-        tags: [],
-        notes: '',
-        paused: false,
-        pauseMode: 'griser',
-        collapsed: false,
-        parent_id: null,
-        created_at: new Date().toISOString()
+        text: text, completed: false, category: targetCat, priority: 0, tags: [], notes: '',
+        paused: false, pauseMode: 'griser', collapsed: false, parent_id: null, created_at: new Date().toISOString()
       };
-
       todos.unshift(newTodo);
       input.value = '';
       saveLocal();
-
       await pushTaskToCloud(newTodo);
       await syncCloud();
     }
@@ -460,30 +430,16 @@
       if (e) e.stopPropagation();
       const parent = todos.find(t => t.id === Number(parentId));
       if (!parent) return;
-
       const text = prompt("Nom de la sous-tâche :");
       if (!text || !text.trim()) return;
-
       parent.collapsed = false;
-
       const newSub = {
         id: generateSafeId(),
-        text: text.trim(),
-        completed: false,
-        category: parent.category || 'Général',
-        priority: 0,
-        tags: [],
-        notes: '',
-        paused: false,
-        pauseMode: 'griser',
-        collapsed: false,
-        parent_id: parent.id,
-        created_at: new Date().toISOString()
+        text: text.trim(), completed: false, category: parent.category || 'Général', priority: 0, tags: [], notes: '',
+        paused: false, pauseMode: 'griser', collapsed: false, parent_id: parent.id, created_at: new Date().toISOString()
       };
-
       todos.push(newSub);
       saveLocal();
-
       await pushTaskToCloud(newSub);
       await syncCloud();
     }
@@ -521,71 +477,50 @@
       if (e) e.stopPropagation();
       const task = todos.find(t => t.id === Number(id));
       if (!task) return;
-
       const newStatus = !task.completed;
       const updatedTasks = [];
-
       task.completed = newStatus;
       updatedTasks.push(task);
-
       if (newStatus === false) {
         uncheckDescendants(task.id, updatedTasks);
         if (task.parent_id) uncheckAncestors(task.parent_id, updatedTasks);
       }
-
       saveLocal();
-
-      for (const t of updatedTasks) {
-        await pushTaskToCloud(t);
-      }
+      for (const t of updatedTasks) { await pushTaskToCloud(t); }
       await syncCloud();
     }
 
     async function deleteTask(e, id) {
       if (e) e.stopPropagation();
       const numericId = Number(id);
-      
       const idsToDelete = [];
       function collectIds(targetId) {
         idsToDelete.push(targetId);
         todos.filter(t => t.parent_id === targetId).forEach(child => collectIds(child.id));
       }
       collectIds(numericId);
-
       todos = todos.filter(t => !idsToDelete.includes(t.id));
       saveLocal();
-
-      try {
-        for (const delId of idsToDelete) {
-          await supabaseClient.from('todos').delete().eq('id', delId);
-        }
-      } catch (err) {
-        console.error("Erreur deleteTask:", err);
-      }
+      try { for (const delId of idsToDelete) { await supabaseClient.from('todos').delete().eq('id', delId); } }
+      catch (err) { console.error("Erreur deleteTask:", err); }
       await syncCloud();
     }
 
     function openModal(id) {
       const item = todos.find(t => t.id === Number(id));
       if (!item) return;
-
       currentEditing = { id: item.id, selectedCategory: item.category || 'Général', selectedPriority: item.priority || 0 };
-
       document.getElementById('modal-heading').textContent = item.parent_id ? 'Éditer la sous-tâche' : 'Éditer la tâche';
       document.getElementById('modal-title').value = item.text || '';
       document.getElementById('modal-tags').value = (item.tags || []).join(', ');
       document.getElementById('modal-notes').value = item.notes || '';
-
       const pausedCb = document.getElementById('modal-paused');
       pausedCb.checked = !!item.paused;
-
       const pauseModes = document.getElementsByName('pause-mode');
       pauseModes.forEach(r => r.checked = (r.value === (item.pauseMode || 'griser')));
-
       togglePauseOptions();
       renderModalCategories();
       setModalPriority(item.priority || 0);
-
       document.getElementById('edit-modal').classList.remove('hidden');
       document.getElementById('edit-modal').classList.add('flex');
     }
@@ -594,53 +529,36 @@
       document.getElementById('edit-modal').classList.add('hidden');
       document.getElementById('edit-modal').classList.remove('flex');
       document.getElementById('tag-suggestions').classList.add('hidden');
+      document.getElementById('task-link-suggestions').classList.add('hidden');
+      currentEditing.id = null;
     }
 
-    function closeModalOnOut(e) {
-      if (e.target.id === 'edit-modal') closeModal();
-    }
-
+    function closeModalOnOut(e) { if (e.target.id === 'edit-modal') closeModal(); }
     function openSettingsModal() {
       const select = document.getElementById('sort-select');
       if (select) select.value = currentSort;
       document.getElementById('settings-modal').classList.remove('hidden');
       document.getElementById('settings-modal').classList.add('flex');
     }
-
     function closeSettingsModal() {
       document.getElementById('settings-modal').classList.add('hidden');
       document.getElementById('settings-modal').classList.remove('flex');
     }
-
-    function closeSettingsModalOnOut(e) {
-      if (e.target.id === 'settings-modal') closeSettingsModal();
-    }
-
-    function setSortOption(opt) {
-      currentSort = opt;
-      localStorage.setItem('todoapp_sort', opt);
-      render();
-    }
+    function closeSettingsModalOnOut(e) { if (e.target.id === 'settings-modal') closeSettingsModal(); }
+    function setSortOption(opt) { currentSort = opt; localStorage.setItem('todoapp_sort', opt); render(); }
 
     function renderModalCategories() {
       const container = document.getElementById('modal-categories-container');
       const catsToDisplay = categories.filter(c => c !== 'Tout' && c !== 'Masquées');
-
       container.innerHTML = catsToDisplay.map(cat => `
         <button type="button" onclick="selectModalCategory('${escapeHtml(cat)}')" 
           class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${currentEditing.selectedCategory === cat ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 text-slate-600 border-slate-200'}">
           ${escapeHtml(cat)}
         </button>
-      `).join('') + `
-        <button type="button" onclick="addNewCategory()" class="px-2.5 py-1.5 bg-slate-200 text-slate-700 hover:bg-slate-300 rounded-xl text-xs font-bold">+</button>
-      `;
+      `).join('') + `<button type="button" onclick="addNewCategory()" class="px-2.5 py-1.5 bg-slate-200 text-slate-700 hover:bg-slate-300 rounded-xl text-xs font-bold">+</button>`;
     }
 
-    function selectModalCategory(cat) {
-      currentEditing.selectedCategory = cat;
-      renderModalCategories();
-    }
-
+    function selectModalCategory(cat) { currentEditing.selectedCategory = cat; renderModalCategories(); }
     function addNewCategory() {
       const name = prompt("Nom de la nouvelle catégorie :");
       if (name && name.trim()) {
@@ -668,8 +586,7 @@
     function togglePauseOptions() {
       const isPaused = document.getElementById('modal-paused').checked;
       const opt = document.getElementById('pause-options');
-      if (isPaused) opt.classList.remove('hidden');
-      else opt.classList.add('hidden');
+      if (isPaused) opt.classList.remove('hidden'); else opt.classList.add('hidden');
     }
 
     function getAllExistingTags() {
@@ -683,12 +600,9 @@
       const parts = val.split(',');
       const currentPart = parts[parts.length - 1].trim().toLowerCase();
       const suggestionsList = document.getElementById('tag-suggestions');
-
       if (!currentPart) { suggestionsList.classList.add('hidden'); return; }
-
       const allTags = getAllExistingTags();
       const filtered = allTags.filter(t => t.toLowerCase().includes(currentPart) && !parts.slice(0, -1).map(p => p.trim()).includes(t));
-
       if (filtered.length > 0) {
         suggestionsList.innerHTML = filtered.map(tag => `
           <li class="px-3 py-2 text-xs font-medium hover:bg-slate-100 cursor-pointer border-b border-slate-50 last:border-0" onclick="insertTagSuggestion('${escapeHtml(tag)}')">
@@ -696,9 +610,7 @@
           </li>
         `).join('');
         suggestionsList.classList.remove('hidden');
-      } else {
-        suggestionsList.classList.add('hidden');
-      }
+      } else suggestionsList.classList.add('hidden');
     }
 
     function insertTagSuggestion(tag) {
@@ -710,29 +622,84 @@
       input.focus();
     }
 
+    // NOUVELLES FONCTIONS D'AUTOCOMPLÉTION ET LIENS ($)
+    function handleTaskLinkAutocomplete(e) {
+      const input = e.target;
+      const val = input.value;
+      const cursorPos = input.selectionStart || 0;
+      const textBeforeCursor = val.substring(0, cursorPos);
+      const match = textBeforeCursor.match(/\$([^\s$]*)$/);
+      
+      const suggestionsList = document.getElementById('task-link-suggestions');
+      
+      if (match) {
+        currentLinkInput = input;
+        const linkSearchTerm = match[1].toLowerCase();
+        const filteredTasks = todos.filter(t => 
+            t.text.toLowerCase().includes(linkSearchTerm) && 
+            t.id !== currentEditing.id
+        );
+        
+        if (filteredTasks.length > 0) {
+          const rect = input.getBoundingClientRect();
+          suggestionsList.style.top = (rect.bottom + window.scrollY + 5) + 'px';
+          suggestionsList.style.left = rect.left + 'px';
+          
+          suggestionsList.innerHTML = filteredTasks.map(t => `
+            <li class="px-3 py-2 font-medium hover:bg-slate-100 cursor-pointer border-b border-slate-50 last:border-0 truncate" onmousedown="insertTaskLink(event, ${t.id})">
+              ${escapeHtml(t.text)}
+            </li>
+          `).join('');
+          suggestionsList.classList.remove('hidden');
+        } else {
+          suggestionsList.classList.add('hidden');
+        }
+      } else {
+        suggestionsList.classList.add('hidden');
+        currentLinkInput = null;
+      }
+    }
+
+    function insertTaskLink(e, taskId) {
+      if (e) e.preventDefault();
+      if (!currentLinkInput) return;
+      
+      const val = currentLinkInput.value;
+      const cursorPos = currentLinkInput.selectionStart;
+      const textBeforeCursor = val.substring(0, cursorPos);
+      const textAfterCursor = val.substring(cursorPos);
+      
+      const match = textBeforeCursor.match(/\$([^\s$]*)$/);
+      if (match) {
+        const startIdx = match.index;
+        const newTextBefore = textBeforeCursor.substring(0, startIdx) + `[[${taskId}]] `;
+        currentLinkInput.value = newTextBefore + textAfterCursor;
+        currentLinkInput.selectionStart = currentLinkInput.selectionEnd = newTextBefore.length;
+      }
+      document.getElementById('task-link-suggestions').classList.add('hidden');
+      currentLinkInput.focus();
+    }
+
+    document.addEventListener('mousedown', (e) => {
+      const suggestionsList = document.getElementById('task-link-suggestions');
+      if (!suggestionsList.contains(e.target)) suggestionsList.classList.add('hidden');
+    });
+
     async function saveModal() {
       const title = document.getElementById('modal-title').value.trim();
       if (!title) return;
-
       const rawTags = document.getElementById('modal-tags').value;
       const tags = rawTags.split(',').map(t => t.trim()).filter(Boolean);
       const notes = document.getElementById('modal-notes').value.trim();
       const paused = document.getElementById('modal-paused').checked;
-
       const pauseModes = document.getElementsByName('pause-mode');
       let pauseMode = 'griser';
       pauseModes.forEach(r => { if (r.checked) pauseMode = r.value; });
-
       const task = todos.find(t => t.id === currentEditing.id);
       if (task) {
-        task.text = title;
-        task.category = currentEditing.selectedCategory;
-        task.priority = currentEditing.selectedPriority;
-        task.tags = tags;
-        task.notes = notes;
-        task.paused = paused;
-        task.pauseMode = pauseMode;
-
+        task.text = title; task.category = currentEditing.selectedCategory;
+        task.priority = currentEditing.selectedPriority; task.tags = tags;
+        task.notes = notes; task.paused = paused; task.pauseMode = pauseMode;
         saveLocal();
         closeModal();
         await pushTaskToCloud(task);
@@ -744,7 +711,6 @@
       const container = document.getElementById('category-tabs');
       let otherCategories = categories.filter(c => c !== 'Masquées');
       let orderedCategories = [...otherCategories, 'Masquées'];
-      
       container.innerHTML = orderedCategories.map(cat => `
         <button onclick="setCategory('${escapeHtml(cat)}')" class="px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${activeCategory === cat ? 'bg-slate-900 text-white border-slate-900 shadow-sm' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}">
           ${escapeHtml(cat)}
@@ -752,12 +718,7 @@
       `).join('');
     }
 
-    function setCategory(cat) {
-      activeCategory = cat;
-      renderCategoryTabs();
-      render();
-    }
-
+    function setCategory(cat) { activeCategory = cat; renderCategoryTabs(); render(); }
     function hasAncestorWithCategory(parentId, categoryName) {
       if (!parentId) return false;
       const parent = todos.find(t => t.id === parentId);
@@ -765,19 +726,13 @@
       if (parent.category === categoryName) return true;
       return hasAncestorWithCategory(parent.parent_id, categoryName);
     }
-
     function getTaskTime(t) {
-      if (t.created_at) {
-        const time = new Date(t.created_at).getTime();
-        if (!isNaN(time)) return time;
-      }
+      if (t.created_at) { const time = new Date(t.created_at).getTime(); if (!isNaN(time)) return time; }
       return t.id || 0;
     }
-
     function sortTasks(items) {
       return items.sort((a, b) => {
-        const timeA = getTaskTime(a);
-        const timeB = getTaskTime(b);
+        const timeA = getTaskTime(a); const timeB = getTaskTime(b);
         if (currentSort === 'date-desc') return timeB - timeA;
         if (currentSort === 'date-asc') return timeA - timeB;
         if (currentSort === 'prio-desc') return (b.priority || 0) - (a.priority || 0) || (timeB - timeA);
@@ -786,27 +741,66 @@
       });
     }
 
+    // CALCUL DU STATUT POUR LES LIENS
+    function getTaskState(taskId) {
+      const task = todos.find(t => t.id === taskId);
+      if (!task) return 'red';
+      if (task.completed) return 'green';
+      
+      function hasCompletedDescendant(id) {
+        const children = todos.filter(t => t.parent_id === id);
+        for (let c of children) {
+          if (c.completed || hasCompletedDescendant(c.id)) return true;
+        }
+        return false;
+      }
+      if (hasCompletedDescendant(taskId)) return 'orange';
+      return 'red';
+    }
+
+    // REMPLACEMENT VISUEL DES LIENS
+    function formatTextWithLinks(text) {
+      if (!text) return '';
+      let escaped = escapeHtml(text);
+      return escaped.replace(/\[\[(\d+)\]\]/g, (match, idStr) => {
+        const id = Number(idStr);
+        const task = todos.find(t => t.id === id);
+        if (!task) return `<span class="line-through text-slate-400">Tâche introuvable</span>`;
+        
+        const state = getTaskState(id);
+        let colorClass = 'text-rose-500'; // Par défaut à faire (Rouge)
+        if (state === 'green') colorClass = 'text-emerald-500'; // Terminée (Vert)
+        else if (state === 'orange') colorClass = 'text-amber-500'; // En cours (Orange)
+        
+        return `<span class="${colorClass} font-bold cursor-pointer hover:underline px-1 bg-slate-100/60 rounded" onclick="scrollToTask(event, ${id})">🔗 ${escapeHtml(task.text)}</span>`;
+      });
+    }
+
+    // NAVIGATION ET MISE EN SURBRILLANCE
+    function scrollToTask(e, id) {
+      if (e) e.stopPropagation();
+      const el = document.getElementById('task-card-' + id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('highlight-task');
+        setTimeout(() => el.classList.remove('highlight-task'), 1500);
+      }
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/[&<>"']/g, match => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[match]));
+    }
+
     function renderTaskTree(parentId = null, level = 0) {
       let items = todos.filter(t => {
         const isMasquer = t.paused && t.pauseMode === 'masquer';
-
-        if (activeCategory === 'Masquées') {
-          return level === 0 ? (isMasquer && t.parent_id === null) : (t.parent_id === parentId);
-        }
-
+        if (activeCategory === 'Masquées') return level === 0 ? (isMasquer && t.parent_id === null) : (t.parent_id === parentId);
         if (isMasquer) return false;
-
         if (level === 0) {
-          if (activeCategory === 'Tout') {
-            if (t.parent_id !== null) return false;
-          } else {
-            if (t.category !== activeCategory) return false;
-            if (hasAncestorWithCategory(t.parent_id, activeCategory)) return false;
-          }
-        } else {
-          if (t.parent_id !== parentId) return false;
-        }
-
+          if (activeCategory === 'Tout') { if (t.parent_id !== null) return false; } 
+          else { if (t.category !== activeCategory) return false; if (hasAncestorWithCategory(t.parent_id, activeCategory)) return false; }
+        } else { if (t.parent_id !== parentId) return false; }
         return true;
       });
 
@@ -832,7 +826,7 @@
 
         return `
           <div class="${level > 0 ? 'ml-4 mt-2 pl-2 border-l-2 border-slate-200/70' : 'mt-2.5'}">
-            <div 
+            <div id="task-card-${todo.id}"
               onclick="openModal(${todo.id})"
               class="flex items-start justify-between gap-2.5 p-3 rounded-2xl border transition-all cursor-pointer ${
                 todo.completed ? 'bg-slate-50 border-slate-100 opacity-60' : 
@@ -850,7 +844,7 @@
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 flex-wrap">
                   <span class="text-sm font-semibold ${todo.completed ? 'line-through text-slate-400' : 'text-slate-800'}">
-                    ${escapeHtml(todo.text)}
+                    ${formatTextWithLinks(todo.text)}
                   </span>
                   ${todo.paused ? `<span class="text-[10px] font-bold px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-md">PAUSE</span>` : ''}
                   ${hasChildren && isCollapsed ? `<span class="text-[10px] font-bold px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded-md">+${children.length} masquée${children.length > 1 ? 's' : ''}</span>` : ''}
@@ -861,20 +855,15 @@
                   ${(todo.tags || []).map(tag => `<span class="text-[10px] font-bold bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-md">#${escapeHtml(tag)}</span>`).join('')}
                 </div>
 
-                ${todo.notes ? `<p class="text-xs text-slate-500 mt-1.5 italic bg-slate-50 p-2 rounded-xl border border-slate-100">${escapeHtml(todo.notes)}</p>` : ''}
+                ${todo.notes ? `<p class="text-xs text-slate-500 mt-1.5 italic bg-slate-50 p-2 rounded-xl border border-slate-100">${formatTextWithLinks(todo.notes)}</p>` : ''}
               </div>
 
               <div class="flex items-center gap-1 shrink-0">
-                ${hasChildren ? `
-                  <button onclick="toggleCollapse(event, ${todo.id})" class="p-1 text-slate-400 hover:text-slate-900 rounded-lg shrink-0" title="${isCollapsed ? 'Déplier' : 'Plier'}">
-                    ${arrowSvg}
-                  </button>
-                ` : ''}
+                ${hasChildren ? `<button onclick="toggleCollapse(event, ${todo.id})" class="p-1 text-slate-400 hover:text-slate-900 rounded-lg shrink-0" title="${isCollapsed ? 'Déplier' : 'Plier'}">${arrowSvg}</button>` : ''}
                 <button onclick="addSubtask(event, ${todo.id})" class="text-slate-400 hover:text-slate-900 font-bold px-2 py-1 text-base rounded-lg" title="Sous-tâche">+</button>
                 <button onclick="deleteTask(event, ${todo.id})" class="text-slate-400 hover:text-rose-500 font-bold px-2 py-1 text-base rounded-lg" title="Supprimer">&times;</button>
               </div>
             </div>
-
             ${childrenHTML}
           </div>
         `;
@@ -884,30 +873,14 @@
     function render() {
       const treeContainer = document.getElementById('task-tree');
       const countEl = document.getElementById('task-count');
-
       const html = renderTaskTree(null, 0);
-
-      if (!html) {
-        treeContainer.innerHTML = `<p class="text-center text-slate-400 text-sm py-8">Aucune tâche dans cette catégorie</p>`;
-      } else {
-        treeContainer.innerHTML = html;
-      }
-
+      if (!html) treeContainer.innerHTML = `<p class="text-center text-slate-400 text-sm py-8">Aucune tâche dans cette catégorie</p>`;
+      else treeContainer.innerHTML = html;
       const activeCount = todos.filter(t => !t.completed).length;
       countEl.textContent = `${activeCount} tâche${activeCount > 1 ? 's' : ''} restante${activeCount > 1 ? 's' : ''}`;
     }
 
-    function escapeHtml(str) {
-      if (!str) return '';
-      return String(str).replace(/[&<>"']/g, match => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-      }[match]));
-    }
-
-    renderCategoryTabs();
-    render();
-    initRealtime();
-    syncCloud();
+    renderCategoryTabs(); render(); initRealtime(); syncCloud();
   </script>
 </body>
 </html>
