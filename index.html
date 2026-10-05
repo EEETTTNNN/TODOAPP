@@ -1,10 +1,10 @@
-<!-- TODOAPP - Version 1.4.2 | Lignes totales : ~960 -->
+<!-- TODOAPP - Version 1.4.3 -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>TODOAPP - v1.4.2</title>
+  <title>TODOAPP - v1.4.3</title>
   
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -54,11 +54,16 @@
       border-width: 2px !important;
       background-color: #eef2ff !important;
     }
+    /* Curseur pour les onglets */
+    #category-tabs {
+      cursor: pointer;
+      user-select: none;
+    }
   </style>
 </head>
 <body class="bg-white text-slate-800 font-sans min-h-screen relative">
 
-  <!-- SUGGESTIONS DE LIENS DE TÂCHES (Autocomplétion $) -->
+  <!-- SUGGESTIONS DE LIENS DE TÂCHES -->
   <ul id="task-link-suggestions" class="hidden absolute bg-white border border-slate-200 rounded-xl shadow-2xl z-[200] max-h-40 overflow-y-auto w-64 text-sm"></ul>
 
   <!-- BANDEAU D'ALERTE DIAGNOSTIC BDD -->
@@ -79,7 +84,7 @@
           <div class="flex items-center gap-2">
             <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">TODOAPP</h1>
             <span id="sync-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0"></span>
-            <span class="text-xs text-slate-400 font-medium">v1.4.2</span>
+            <span class="text-xs text-slate-400 font-medium">v1.4.3</span>
           </div>
           <div class="flex items-center gap-1.5 shrink-0">
             <button onclick="syncCloud()" class="w-8 h-8 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 text-xs font-semibold flex items-center justify-center" title="Synchroniser">
@@ -90,7 +95,7 @@
             </button>
           </div>
         </div>
-        <div class="flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-slate-100 scrollbar-none cursor-pointer" id="category-tabs"></div>
+        <div class="flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-slate-100 scrollbar-none" id="category-tabs"></div>
       </header>
 
       <form onsubmit="addTask(event)" class="flex gap-1.5 mb-4 relative">
@@ -108,7 +113,7 @@
   </div>
 
   <!-- MODALE ÉDITION -->
-  <div id="edit-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center p-4 z-50" onclick="closeModalOnOut(event)">
+  <div id="edit-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center p-4 z-50" onclick="closeModalOnOut(event)" onkeydown="handleModalKeyDown(event)">
     <div class="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto space-y-5" onclick="event.stopPropagation()">
       <div class="flex justify-between items-center border-b pb-3 border-slate-100">
         <h3 class="font-extrabold text-lg text-slate-900" id="modal-heading">Éditer la tâche</h3>
@@ -178,7 +183,7 @@
       <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-200">
         <div>
           <div class="text-xs font-bold text-slate-800">Version de l'application</div>
-          <div class="text-[11px] text-slate-500">v1.4.2 (Cache: todoapp_v142)</div>
+          <div class="text-[11px] text-slate-500">v1.4.3 (Cache: todoapp_v143)</div>
         </div>
         <button onclick="forceAppUpdate()" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800">Forcer MaJ</button>
       </div>
@@ -186,7 +191,7 @@
   </div>
 
   <script>
-    const CACHE_NAME = 'todoapp_v142';
+    const CACHE_NAME = 'todoapp_v143';
 
     if ('serviceWorker' in navigator) {
       const swCode = `
@@ -207,16 +212,48 @@
       window.location.reload(true);
     }
 
-    // Gestion du scroll horizontal molette sur PC
+    // Gestion du scroll horizontal (Glisser-déposer + molette)
     document.addEventListener('DOMContentLoaded', () => {
       const catTabs = document.getElementById('category-tabs');
       if (catTabs) {
+        // Scroll à la molette
         catTabs.addEventListener('wheel', (e) => {
           if (e.deltaY !== 0) {
             e.preventDefault();
             catTabs.scrollLeft += e.deltaY * 1.5;
           }
         }, { passive: false });
+
+        // Scroll par glisser-déposer (Drag to scroll)
+        let isDown = false;
+        let startX;
+        let scrollLeft;
+        let isDragging = false;
+
+        catTabs.addEventListener('mousedown', (e) => {
+          isDown = true;
+          isDragging = false;
+          startX = e.pageX - catTabs.offsetLeft;
+          scrollLeft = catTabs.scrollLeft;
+        });
+        catTabs.addEventListener('mouseleave', () => { isDown = false; });
+        catTabs.addEventListener('mouseup', () => { isDown = false; });
+        catTabs.addEventListener('mousemove', (e) => {
+          if (!isDown) return;
+          e.preventDefault();
+          const x = e.pageX - catTabs.offsetLeft;
+          const walk = (x - startX) * 2; // Vitesse de défilement
+          if (Math.abs(walk) > 5) isDragging = true;
+          catTabs.scrollLeft = scrollLeft - walk;
+        });
+
+        // Empêche le clic accidentel si on a fait un glissement
+        catTabs.addEventListener('click', (e) => {
+          if (isDragging) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        }, { capture: true });
       }
     });
 
@@ -225,7 +262,7 @@
     const SUPABASE_KEY = "sb_publishable_6f1T8ttm3Lc0yTSqsHUikA_XW5eo3X7";
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const STORAGE_KEY = 'todoapp_tasks_v142';
+    const STORAGE_KEY = 'todoapp_tasks_v143';
 
     function generateSafeId() {
       return Math.floor((Date.now() % 1000000000)) * 1000 + Math.floor(Math.random() * 1000);
@@ -250,15 +287,14 @@
     }
 
     let rawLocal = localStorage.getItem(STORAGE_KEY) || 
-                   localStorage.getItem('todoapp_tasks_v141') || 
-                   localStorage.getItem('todoapp_tasks_v140') || '[]';
+                   localStorage.getItem('todoapp_tasks_v142') || '[]';
     
     let todos = sanitizeTodosList(JSON.parse(rawLocal));
 
     let categories = ["Tout", "Général", "Maison", "Jardin", "Voiture", "Aster", "Aimé", "Masquées"];
     let activeCategory = "Tout";
     let currentSort = localStorage.getItem('todoapp_sort') || 'perso';
-    let currentEditing = { id: null, selectedCategory: 'Général', selectedPriority: 0 };
+    let currentEditing = { id: null, parentId: null, selectedCategory: 'Général', selectedPriority: 0 };
     let currentLinkInput = null;
     let draggedTaskId = null;
 
@@ -440,7 +476,8 @@
       const targetCat = (activeCategory === 'Tout' || activeCategory === 'Masquées') ? 'Général' : activeCategory;
       
       const categoryTasks = todos.filter(t => t.parent_id === null);
-      const newOrder = categoryTasks.length > 0 ? Math.max(...categoryTasks.map(t => t.manual_order || 0)) + 10 : 0;
+      // Pour les plus récents en haut par défaut : on prend la valeur minimale - 10
+      const newOrder = categoryTasks.length > 0 ? Math.min(...categoryTasks.map(t => t.manual_order || 0)) - 10 : 0;
 
       const newTodo = {
         id: generateSafeId(),
@@ -454,26 +491,26 @@
       await syncCloud();
     }
 
-    async function addSubtask(e, parentId) {
+    function addSubtask(e, parentId) {
       if (e) e.stopPropagation();
       const parent = todos.find(t => t.id === Number(parentId));
       if (!parent) return;
-      const text = prompt("Nom de la sous-tâche :");
-      if (!text || !text.trim()) return;
-      parent.collapsed = false;
 
-      const siblings = todos.filter(t => t.parent_id === parent.id);
-      const newOrder = siblings.length > 0 ? Math.max(...siblings.map(t => t.manual_order || 0)) + 10 : 0;
-
-      const newSub = {
-        id: generateSafeId(),
-        text: text.trim(), completed: false, category: parent.category || 'Général', priority: 0, tags: [], notes: '',
-        paused: false, pauseMode: 'griser', collapsed: false, parent_id: parent.id, manual_order: newOrder, created_at: new Date().toISOString()
-      };
-      todos.push(newSub);
-      saveLocal();
-      await pushTaskToCloud(newSub);
-      await syncCloud();
+      currentEditing = { id: 'new-subtask', parentId: parent.id, selectedCategory: parent.category || 'Général', selectedPriority: 0 };
+      
+      document.getElementById('modal-heading').textContent = 'Nouvelle sous-tâche';
+      document.getElementById('modal-title').value = '';
+      document.getElementById('modal-tags').value = '';
+      document.getElementById('modal-notes').value = '';
+      document.getElementById('modal-paused').checked = false;
+      const pauseModes = document.getElementsByName('pause-mode');
+      pauseModes.forEach(r => r.checked = (r.value === 'griser'));
+      togglePauseOptions();
+      renderModalCategories();
+      setModalPriority(0);
+      
+      document.getElementById('edit-modal').classList.remove('hidden');
+      document.getElementById('edit-modal').classList.add('flex');
     }
 
     function toggleCollapse(e, id) {
@@ -529,7 +566,7 @@
         uncheckDescendants(task.id, updatedTasks);
         if (task.parent_id) uncheckAncestors(task.parent_id, updatedTasks);
       }
-      saveLocal(); // Déclenche le render qui actualisera tous les liens partout
+      saveLocal();
       for (const t of updatedTasks) { await pushTaskToCloud(t); }
       await syncCloud();
     }
@@ -553,7 +590,7 @@
     function openModal(id) {
       const item = todos.find(t => t.id === Number(id));
       if (!item) return;
-      currentEditing = { id: item.id, selectedCategory: item.category || 'Général', selectedPriority: item.priority || 0 };
+      currentEditing = { id: item.id, parentId: item.parent_id, selectedCategory: item.category || 'Général', selectedPriority: item.priority || 0 };
       document.getElementById('modal-heading').textContent = item.parent_id ? 'Éditer la sous-tâche' : 'Éditer la tâche';
       document.getElementById('modal-title').value = item.text || '';
       document.getElementById('modal-tags').value = (item.tags || []).join(', ');
@@ -575,10 +612,29 @@
       document.getElementById('tag-suggestions').classList.add('hidden');
       document.getElementById('task-link-suggestions').classList.add('hidden');
       currentEditing.id = null;
+      currentEditing.parentId = null;
     }
 
     function closeModalOnOut(e) { if (e.target.id === 'edit-modal') closeModal(); }
     
+    // Gérer l'appui sur la touche Entrée dans la modale
+    function handleModalKeyDown(e) {
+      if (e.key === 'Enter') {
+        // Permet le retour à la ligne si on est dans les notes (ou titre) et qu'on maintient Shift
+        if (e.target.tagName === 'TEXTAREA' && e.shiftKey) return;
+        
+        // Empêche la sauvegarde si on est en train de naviguer dans l'autocomplétion
+        const linkSuggestions = document.getElementById('task-link-suggestions');
+        if (linkSuggestions && !linkSuggestions.classList.contains('hidden')) return;
+        
+        const tagSuggestions = document.getElementById('tag-suggestions');
+        if (tagSuggestions && !tagSuggestions.classList.contains('hidden')) return;
+
+        e.preventDefault(); // Empêche le retour à la ligne classique
+        saveModal();
+      }
+    }
+
     function openSettingsModal() {
       const select = document.getElementById('sort-select');
       if (select) select.value = currentSort;
@@ -748,15 +804,38 @@
       const pauseModes = document.getElementsByName('pause-mode');
       let pauseMode = 'griser';
       pauseModes.forEach(r => { if (r.checked) pauseMode = r.value; });
-      const task = todos.find(t => t.id === currentEditing.id);
-      if (task) {
-        task.text = title; task.category = currentEditing.selectedCategory;
-        task.priority = currentEditing.selectedPriority; task.tags = tags;
-        task.notes = notes; task.paused = paused; task.pauseMode = pauseMode;
+
+      if (currentEditing.id === 'new-subtask') {
+        // Création d'une nouvelle sous-tâche
+        const parent = todos.find(t => t.id === currentEditing.parentId);
+        if (parent) parent.collapsed = false;
+
+        const siblings = todos.filter(t => t.parent_id === currentEditing.parentId);
+        const newOrder = siblings.length > 0 ? Math.min(...siblings.map(t => t.manual_order || 0)) - 10 : 0;
+
+        const newSub = {
+          id: generateSafeId(),
+          text: title, completed: false, category: currentEditing.selectedCategory, priority: currentEditing.selectedPriority, tags: tags, notes: notes,
+          paused: paused, pauseMode: pauseMode, collapsed: false, parent_id: currentEditing.parentId, manual_order: newOrder, created_at: new Date().toISOString()
+        };
+        todos.push(newSub);
         saveLocal();
         closeModal();
-        await pushTaskToCloud(task);
+        await pushTaskToCloud(newSub);
+        if (parent) await pushTaskToCloud(parent); // Met à jour l'état déplié du parent sur le cloud
         await syncCloud();
+      } else {
+        // Édition d'une tâche existante
+        const task = todos.find(t => t.id === currentEditing.id);
+        if (task) {
+          task.text = title; task.category = currentEditing.selectedCategory;
+          task.priority = currentEditing.selectedPriority; task.tags = tags;
+          task.notes = notes; task.paused = paused; task.pauseMode = pauseMode;
+          saveLocal();
+          closeModal();
+          await pushTaskToCloud(task);
+          await syncCloud();
+        }
       }
     }
 
@@ -834,9 +913,9 @@
       const targetTask = todos.find(t => t.id === targetId);
       
       if (!draggedTask || !targetTask) return;
-      if (hasAncestor(targetTask.id, draggedTask.id)) return; // Empêche un parent d'aller dans ses enfants
+      if (hasAncestor(targetTask.id, draggedTask.id)) return;
       
-      draggedTask.parent_id = targetTask.parent_id; // Aligne sur le même niveau
+      draggedTask.parent_id = targetTask.parent_id;
 
       let siblings = todos.filter(t => t.parent_id === targetTask.parent_id);
       siblings.sort((a, b) => (a.manual_order || 0) - (b.manual_order || 0));
@@ -887,7 +966,7 @@
       return 'red';
     }
 
-    // REMPLACEMENT VISUEL DES LIENS (AVEC CASE À COCHER)
+    // REMPLACEMENT VISUEL DES LIENS
     function formatTextWithLinks(text) {
       if (!text) return '';
       let escaped = escapeHtml(text);
@@ -916,7 +995,7 @@
       if (e) e.stopPropagation();
       let updatedList = [];
       uncollapseAncestors(id, updatedList);
-      if (updatedList.length > 0) saveLocal(); // Déclenche le render pour afficher le parent
+      if (updatedList.length > 0) saveLocal();
 
       setTimeout(() => {
         const el = document.getElementById('task-card-' + id);
@@ -925,7 +1004,7 @@
           el.classList.add('highlight-task');
           setTimeout(() => el.classList.remove('highlight-task'), 1500);
         }
-      }, 50); // Léger délai permettant au DOM de se dessiner si la tâche était repliée
+      }, 50);
     }
 
     function escapeHtml(str) {
