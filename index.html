@@ -1,10 +1,10 @@
-<!-- TODOAPP - Version 1.4.3 -->
+<!-- TODOAPP - Version 1.4.4 -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>TODOAPP - v1.4.3</title>
+  <title>TODOAPP - v1.4.4</title>
   
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -54,7 +54,6 @@
       border-width: 2px !important;
       background-color: #eef2ff !important;
     }
-    /* Curseur pour les onglets */
     #category-tabs {
       cursor: pointer;
       user-select: none;
@@ -84,7 +83,7 @@
           <div class="flex items-center gap-2">
             <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">TODOAPP</h1>
             <span id="sync-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0"></span>
-            <span class="text-xs text-slate-400 font-medium">v1.4.3</span>
+            <span class="text-xs text-slate-400 font-medium">v1.4.4</span>
           </div>
           <div class="flex items-center gap-1.5 shrink-0">
             <button onclick="syncCloud()" class="w-8 h-8 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 text-xs font-semibold flex items-center justify-center" title="Synchroniser">
@@ -183,7 +182,7 @@
       <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-200">
         <div>
           <div class="text-xs font-bold text-slate-800">Version de l'application</div>
-          <div class="text-[11px] text-slate-500">v1.4.3 (Cache: todoapp_v143)</div>
+          <div class="text-[11px] text-slate-500">v1.4.4 (Cache: todoapp_v144)</div>
         </div>
         <button onclick="forceAppUpdate()" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800">Forcer MaJ</button>
       </div>
@@ -191,7 +190,7 @@
   </div>
 
   <script>
-    const CACHE_NAME = 'todoapp_v143';
+    const CACHE_NAME = 'todoapp_v144';
 
     if ('serviceWorker' in navigator) {
       const swCode = `
@@ -212,29 +211,18 @@
       window.location.reload(true);
     }
 
-    // Gestion du scroll horizontal (Glisser-déposer + molette)
+    // Gestion du scroll horizontal des catégories
     document.addEventListener('DOMContentLoaded', () => {
       const catTabs = document.getElementById('category-tabs');
       if (catTabs) {
-        // Scroll à la molette
         catTabs.addEventListener('wheel', (e) => {
-          if (e.deltaY !== 0) {
-            e.preventDefault();
-            catTabs.scrollLeft += e.deltaY * 1.5;
-          }
+          if (e.deltaY !== 0) { e.preventDefault(); catTabs.scrollLeft += e.deltaY * 1.5; }
         }, { passive: false });
 
-        // Scroll par glisser-déposer (Drag to scroll)
-        let isDown = false;
-        let startX;
-        let scrollLeft;
-        let isDragging = false;
-
+        let isDown = false, startX, scrollLeft, isDragging = false;
         catTabs.addEventListener('mousedown', (e) => {
-          isDown = true;
-          isDragging = false;
-          startX = e.pageX - catTabs.offsetLeft;
-          scrollLeft = catTabs.scrollLeft;
+          isDown = true; isDragging = false;
+          startX = e.pageX - catTabs.offsetLeft; scrollLeft = catTabs.scrollLeft;
         });
         catTabs.addEventListener('mouseleave', () => { isDown = false; });
         catTabs.addEventListener('mouseup', () => { isDown = false; });
@@ -242,17 +230,12 @@
           if (!isDown) return;
           e.preventDefault();
           const x = e.pageX - catTabs.offsetLeft;
-          const walk = (x - startX) * 2; // Vitesse de défilement
+          const walk = (x - startX) * 2;
           if (Math.abs(walk) > 5) isDragging = true;
           catTabs.scrollLeft = scrollLeft - walk;
         });
-
-        // Empêche le clic accidentel si on a fait un glissement
         catTabs.addEventListener('click', (e) => {
-          if (isDragging) {
-            e.preventDefault();
-            e.stopPropagation();
-          }
+          if (isDragging) { e.preventDefault(); e.stopPropagation(); }
         }, { capture: true });
       }
     });
@@ -262,7 +245,7 @@
     const SUPABASE_KEY = "sb_publishable_6f1T8ttm3Lc0yTSqsHUikA_XW5eo3X7";
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const STORAGE_KEY = 'todoapp_tasks_v143';
+    const STORAGE_KEY = 'todoapp_tasks_v144';
 
     function generateSafeId() {
       return Math.floor((Date.now() % 1000000000)) * 1000 + Math.floor(Math.random() * 1000);
@@ -287,12 +270,32 @@
     }
 
     let rawLocal = localStorage.getItem(STORAGE_KEY) || 
-                   localStorage.getItem('todoapp_tasks_v142') || '[]';
+                   localStorage.getItem('todoapp_tasks_v143') || '[]';
     
     let todos = sanitizeTodosList(JSON.parse(rawLocal));
 
-    let categories = ["Tout", "Général", "Maison", "Jardin", "Voiture", "Aster", "Aimé", "Masquées"];
+    // GESTION DYNAMIQUE DES CATÉGORIES
+    const BASE_CATEGORIES = ["Général", "Maison", "Jardin", "Voiture", "Aster", "Aimé"];
+    let categories = [];
     let activeCategory = "Tout";
+
+    function updateCategories() {
+      const localCustomCats = JSON.parse(localStorage.getItem('todoapp_custom_cats') || '[]');
+      const usedCategories = todos.map(t => t.category).filter(c => c && c.trim() !== '');
+      
+      const mergedCats = new Set([...BASE_CATEGORIES, ...localCustomCats, ...usedCategories]);
+      
+      mergedCats.delete('Tout');
+      mergedCats.delete('Masquées');
+      
+      categories = ['Tout', ...Array.from(mergedCats), 'Masquées'];
+      
+      // Assurer que la catégorie active existe toujours, sinon repasser sur "Tout"
+      if (!categories.includes(activeCategory)) activeCategory = "Tout";
+      
+      renderCategoryTabs();
+    }
+
     let currentSort = localStorage.getItem('todoapp_sort') || 'perso';
     let currentEditing = { id: null, parentId: null, selectedCategory: 'Général', selectedPriority: 0 };
     let currentLinkInput = null;
@@ -309,6 +312,7 @@
 
     function saveLocal() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+      updateCategories();
       render();
     }
 
@@ -456,7 +460,7 @@
             }
           });
           todos = sanitizeTodosList(mergedTodos);
-          saveLocal();
+          saveLocal(); // Déclenchera updateCategories()
         }
       } catch (err) {
         console.error("Exception syncCloud:", err);
@@ -476,7 +480,6 @@
       const targetCat = (activeCategory === 'Tout' || activeCategory === 'Masquées') ? 'Général' : activeCategory;
       
       const categoryTasks = todos.filter(t => t.parent_id === null);
-      // Pour les plus récents en haut par défaut : on prend la valeur minimale - 10
       const newOrder = categoryTasks.length > 0 ? Math.min(...categoryTasks.map(t => t.manual_order || 0)) - 10 : 0;
 
       const newTodo = {
@@ -617,20 +620,17 @@
 
     function closeModalOnOut(e) { if (e.target.id === 'edit-modal') closeModal(); }
     
-    // Gérer l'appui sur la touche Entrée dans la modale
     function handleModalKeyDown(e) {
       if (e.key === 'Enter') {
-        // Permet le retour à la ligne si on est dans les notes (ou titre) et qu'on maintient Shift
         if (e.target.tagName === 'TEXTAREA' && e.shiftKey) return;
         
-        // Empêche la sauvegarde si on est en train de naviguer dans l'autocomplétion
         const linkSuggestions = document.getElementById('task-link-suggestions');
         if (linkSuggestions && !linkSuggestions.classList.contains('hidden')) return;
         
         const tagSuggestions = document.getElementById('tag-suggestions');
         if (tagSuggestions && !tagSuggestions.classList.contains('hidden')) return;
 
-        e.preventDefault(); // Empêche le retour à la ligne classique
+        e.preventDefault(); 
         saveModal();
       }
     }
@@ -672,12 +672,14 @@
       const name = prompt("Nom de la nouvelle catégorie :");
       if (name && name.trim()) {
         const clean = name.trim();
-        if (!categories.includes(clean)) {
-          categories.splice(categories.length - 1, 0, clean);
-          currentEditing.selectedCategory = clean;
-          renderCategoryTabs();
-          renderModalCategories();
+        const localCustomCats = JSON.parse(localStorage.getItem('todoapp_custom_cats') || '[]');
+        if (!localCustomCats.includes(clean)) {
+          localCustomCats.push(clean);
+          localStorage.setItem('todoapp_custom_cats', JSON.stringify(localCustomCats));
         }
+        updateCategories();
+        currentEditing.selectedCategory = clean;
+        renderModalCategories();
       }
     }
 
@@ -731,7 +733,6 @@
       input.focus();
     }
 
-    // AUTOCOMPLÉTION ET LIENS ($)
     function handleTaskLinkAutocomplete(e) {
       const input = e.target;
       const val = input.value;
@@ -806,7 +807,6 @@
       pauseModes.forEach(r => { if (r.checked) pauseMode = r.value; });
 
       if (currentEditing.id === 'new-subtask') {
-        // Création d'une nouvelle sous-tâche
         const parent = todos.find(t => t.id === currentEditing.parentId);
         if (parent) parent.collapsed = false;
 
@@ -822,10 +822,9 @@
         saveLocal();
         closeModal();
         await pushTaskToCloud(newSub);
-        if (parent) await pushTaskToCloud(parent); // Met à jour l'état déplié du parent sur le cloud
+        if (parent) await pushTaskToCloud(parent);
         await syncCloud();
       } else {
-        // Édition d'une tâche existante
         const task = todos.find(t => t.id === currentEditing.id);
         if (task) {
           task.text = title; task.category = currentEditing.selectedCategory;
@@ -841,9 +840,7 @@
 
     function renderCategoryTabs() {
       const container = document.getElementById('category-tabs');
-      let otherCategories = categories.filter(c => c !== 'Masquées');
-      let orderedCategories = [...otherCategories, 'Masquées'];
-      container.innerHTML = orderedCategories.map(cat => `
+      container.innerHTML = categories.map(cat => `
         <button onclick="setCategory('${escapeHtml(cat)}')" class="px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${activeCategory === cat ? 'bg-slate-900 text-white border-slate-900 shadow-sm' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}">
           ${escapeHtml(cat)}
         </button>
@@ -878,7 +875,6 @@
       });
     }
 
-    // GESTION DRAG AND DROP
     function handleDragStart(e, id) {
       draggedTaskId = id;
       e.dataTransfer.effectAllowed = 'move';
@@ -949,7 +945,6 @@
       return hasAncestor(child.parent_id, possibleAncestorId);
     }
 
-    // CALCUL DU STATUT POUR LES LIENS
     function getTaskState(taskId) {
       const task = todos.find(t => t.id === taskId);
       if (!task) return 'red';
@@ -966,7 +961,6 @@
       return 'red';
     }
 
-    // REMPLACEMENT VISUEL DES LIENS
     function formatTextWithLinks(text) {
       if (!text) return '';
       let escaped = escapeHtml(text);
@@ -990,7 +984,6 @@
       });
     }
 
-    // NAVIGATION ET MISE EN SURBRILLANCE
     function scrollToTask(e, id) {
       if (e) e.stopPropagation();
       let updatedList = [];
@@ -1108,7 +1101,7 @@
       countEl.textContent = `${activeCount} tâche${activeCount > 1 ? 's' : ''} restante${activeCount > 1 ? 's' : ''}`;
     }
 
-    renderCategoryTabs(); render(); initRealtime(); syncCloud();
+    updateCategories(); initRealtime(); syncCloud();
   </script>
 </body>
 </html>
