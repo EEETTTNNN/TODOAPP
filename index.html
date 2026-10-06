@@ -1,10 +1,10 @@
-<!-- TODOAPP - Version 1.4.4 -->
+<!-- TODOAPP - Version 1.4.5 -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>TODOAPP - v1.4.4</title>
+  <title>TODOAPP - v1.4.5</title>
   
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -15,6 +15,9 @@
   <style>
     html, body {
       background-color: #0f172a;
+      overflow: hidden; /* Empêche le scroll global pour gérer le viewport de zoom */
+      height: 100vh;
+      margin: 0;
     }
     body {
       -webkit-tap-highlight-color: transparent;
@@ -58,9 +61,55 @@
       cursor: pointer;
       user-select: none;
     }
+
+    /* Styles pour le Viewport et Zoom */
+    #viewport {
+      width: 100%;
+      height: calc(100vh - 140px);
+      overflow: auto;
+      position: relative;
+      touch-action: pan-x pan-y; /* Permet le scroll natif mobile mais laisse la place au JS pour le pinch */
+    }
+    #zoom-container {
+      transform-origin: 0 0;
+      will-change: transform;
+      min-width: 100%;
+      padding-bottom: 100px;
+    }
+
+    /* Mode Mini-Blocs (< 10% de zoom) */
+    .zoom-container.mini-mode .task-item-wrapper {
+      display: inline-block !important;
+      width: 12px !important;
+      height: 12px !important;
+      margin: 2px !important;
+      vertical-align: middle;
+      border: none !important;
+    }
+    .zoom-container.mini-mode .task-card-bg {
+      padding: 0 !important;
+      width: 12px !important;
+      height: 12px !important;
+      min-height: 0 !important;
+      border-radius: 2px !important;
+      border: none !important;
+      box-shadow: none !important;
+    }
+    .zoom-container.mini-mode .task-card-bg > * {
+      display: none !important; /* Cache tout le texte et boutons */
+    }
+    /* Couleurs des mini-blocs selon l'état */
+    .zoom-container.mini-mode .task-card-bg.mini-red { background-color: #f43f5e !important; }
+    .zoom-container.mini-mode .task-card-bg.mini-orange { background-color: #fbbf24 !important; }
+    .zoom-container.mini-mode .task-card-bg.mini-green { background-color: #10b981 !important; }
+    .zoom-container.mini-mode .drag-handle,
+    .zoom-container.mini-mode .ml-4 {
+      margin-left: 0 !important;
+      display: inline !important;
+    }
   </style>
 </head>
-<body class="bg-white text-slate-800 font-sans min-h-screen relative">
+<body class="bg-white text-slate-800 font-sans h-screen flex flex-col relative">
 
   <!-- SUGGESTIONS DE LIENS DE TÂCHES -->
   <ul id="task-link-suggestions" class="hidden absolute bg-white border border-slate-200 rounded-xl shadow-2xl z-[200] max-h-40 overflow-y-auto w-64 text-sm"></ul>
@@ -76,15 +125,24 @@
     <img src="splashlogo.jpg" alt="Splash Screen" class="w-full h-full object-cover">
   </div>
 
-  <div class="max-w-2xl mx-auto min-h-screen flex flex-col justify-between pt-2">
-    <div>
-      <header class="mb-4">
-        <div class="flex justify-between items-center mb-3 gap-2">
+  <div class="max-w-2xl mx-auto w-full h-full flex flex-col justify-between pt-2 px-4">
+    <div class="flex flex-col h-full overflow-hidden">
+      <header class="mb-3 shrink-0">
+        <div class="flex justify-between items-center mb-2 gap-2">
           <div class="flex items-center gap-2">
-            <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">TODOAPP</h1>
+            <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">TODOAPP</h1>
             <span id="sync-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0"></span>
-            <span class="text-xs text-slate-400 font-medium">v1.4.4</span>
+            <span class="text-xs text-slate-400 font-medium">v1.4.5</span>
           </div>
+
+          <!-- BARRE DE ZOOM DISCRÈTE -->
+          <div class="flex items-center gap-1.5 bg-slate-100 px-2 py-1 rounded-xl border border-slate-200">
+            <button onclick="adjustZoom(-0.1)" class="text-slate-600 hover:text-slate-900 font-bold text-xs px-1" title="Dézoomer">-</button>
+            <input type="range" id="zoom-range" min="0.05" max="2.0" step="0.05" value="1.0" oninput="onZoomSliderChange(this.value)" class="w-20 accent-slate-900 cursor-pointer h-1 bg-slate-300 rounded-lg">
+            <button onclick="adjustZoom(0.1)" class="text-slate-600 hover:text-slate-900 font-bold text-xs px-1" title="Zommer">+</button>
+            <span id="zoom-level-label" class="text-[10px] font-bold text-slate-500 w-8 text-right">100%</span>
+          </div>
+
           <div class="flex items-center gap-1.5 shrink-0">
             <button onclick="syncCloud()" class="w-8 h-8 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 text-xs font-semibold flex items-center justify-center" title="Synchroniser">
               <span id="sync-icon">🔄</span>
@@ -94,18 +152,23 @@
             </button>
           </div>
         </div>
-        <div class="flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-slate-100 scrollbar-none" id="category-tabs"></div>
+        <div class="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-slate-100 scrollbar-none" id="category-tabs"></div>
       </header>
 
-      <form onsubmit="addTask(event)" class="flex gap-1.5 mb-4 relative">
+      <form onsubmit="addTask(event)" class="flex gap-1.5 mb-3 shrink-0 relative">
         <input type="text" id="task-input" placeholder="Ajouter une tâche... (utilisez $ pour lier)" oninput="handleTaskLinkAutocomplete(event)" class="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-900" required>
         <button type="submit" class="bg-slate-900 text-white rounded-xl px-3 py-1.5 font-bold text-sm hover:bg-slate-800">+</button>
       </form>
 
-      <div id="task-tree" class="space-y-3 pb-8"></div>
+      <!-- VIEWPORT ET CONTENEUR ZOOMABLE -->
+      <div id="viewport">
+        <div id="zoom-container">
+          <div id="task-tree" class="space-y-2"></div>
+        </div>
+      </div>
     </div>
 
-    <footer class="mt-8 pt-4 border-t border-slate-100 text-xs text-slate-400 flex justify-between items-center pb-6">
+    <footer class="mt-2 pt-2 border-t border-slate-100 text-xs text-slate-400 flex justify-between items-center pb-4 shrink-0">
       <span id="task-count">0 tâche</span>
       <span id="sync-status" class="text-emerald-600 font-medium">● Synchro Temps Réel</span>
     </footer>
@@ -182,7 +245,7 @@
       <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-200">
         <div>
           <div class="text-xs font-bold text-slate-800">Version de l'application</div>
-          <div class="text-[11px] text-slate-500">v1.4.4 (Cache: todoapp_v144)</div>
+          <div class="text-[11px] text-slate-500">v1.4.5 (Cache: todoapp_v145)</div>
         </div>
         <button onclick="forceAppUpdate()" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800">Forcer MaJ</button>
       </div>
@@ -190,7 +253,7 @@
   </div>
 
   <script>
-    const CACHE_NAME = 'todoapp_v144';
+    const CACHE_NAME = 'todoapp_v145';
 
     if ('serviceWorker' in navigator) {
       const swCode = `
@@ -209,6 +272,76 @@
       if ('caches' in window) { caches.keys().then(names => names.forEach(n => caches.delete(n))); }
       localStorage.clear();
       window.location.reload(true);
+    }
+
+    // SYSTÈME DE ZOOM & GESTURES (Ctrl+Scroll, Pinch to Zoom, Range, Mini-blocs < 10%)
+    let currentZoom = 1.0;
+    const minZoom = 0.05;
+    const maxZoom = 2.0;
+
+    function applyZoom(newZoom) {
+      currentZoom = Math.max(minZoom, Math.min(maxZoom, newZoom));
+      const container = document.getElementById('zoom-container');
+      const range = document.getElementById('zoom-range');
+      const label = document.getElementById('zoom-level-label');
+
+      if (container) {
+        container.style.transform = `scale(${currentZoom})`;
+        if (currentZoom < 0.1) {
+          container.classList.add('mini-mode');
+        } else {
+          container.classList.remove('mini-mode');
+        }
+      }
+      if (range) range.value = currentZoom;
+      if (label) label.textContent = Math.round(currentZoom * 100) + '%';
+    }
+
+    function adjustZoom(delta) {
+      applyZoom(currentZoom + delta);
+    }
+
+    function onZoomSliderChange(val) {
+      applyZoom(parseFloat(val));
+    }
+
+    // 1. Ctrl + Scroll (PC)
+    const viewportEl = document.getElementById('viewport');
+    if (viewportEl) {
+      viewportEl.addEventListener('wheel', (e) => {
+        if (e.ctrlKey) {
+          e.preventDefault();
+          const delta = e.deltaY < 0 ? 0.1 : -0.1;
+          applyZoom(currentZoom + delta);
+        }
+      }, { passive: false });
+
+      // 2. Pinch to Zoom (iOS / Tactile)
+      let initialTouchDistance = null;
+      viewportEl.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 2) {
+          initialTouchDistance = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+          );
+        }
+      }, { passive: true });
+
+      viewportEl.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 2 && initialTouchDistance !== null) {
+          const currentDistance = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+          );
+          const factor = currentDistance / initialTouchDistance;
+          applyZoom(currentZoom * (factor > 1 ? 1.02 : 0.98));
+          initialTouchDistance = currentDistance;
+        }
+      }, { passive: true });
+
+      viewportEl.addEventListener('touchend', () => {
+        initialTouchDistance = null;
+      });
     }
 
     // Gestion du scroll horizontal des catégories
@@ -245,7 +378,7 @@
     const SUPABASE_KEY = "sb_publishable_6f1T8ttm3Lc0yTSqsHUikA_XW5eo3X7";
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const STORAGE_KEY = 'todoapp_tasks_v144';
+    const STORAGE_KEY = 'todoapp_tasks_v145';
 
     function generateSafeId() {
       return Math.floor((Date.now() % 1000000000)) * 1000 + Math.floor(Math.random() * 1000);
@@ -270,7 +403,7 @@
     }
 
     let rawLocal = localStorage.getItem(STORAGE_KEY) || 
-                   localStorage.getItem('todoapp_tasks_v143') || '[]';
+                   localStorage.getItem('todoapp_tasks_v144') || '[]';
     
     let todos = sanitizeTodosList(JSON.parse(rawLocal));
 
@@ -290,7 +423,6 @@
       
       categories = ['Tout', ...Array.from(mergedCats), 'Masquées'];
       
-      // Assurer que la catégorie active existe toujours, sinon repasser sur "Tout"
       if (!categories.includes(activeCategory)) activeCategory = "Tout";
       
       renderCategoryTabs();
@@ -460,7 +592,7 @@
             }
           });
           todos = sanitizeTodosList(mergedTodos);
-          saveLocal(); // Déclenchera updateCategories()
+          saveLocal();
         }
       } catch (err) {
         console.error("Exception syncCloud:", err);
@@ -841,7 +973,7 @@
     function renderCategoryTabs() {
       const container = document.getElementById('category-tabs');
       container.innerHTML = categories.map(cat => `
-        <button onclick="setCategory('${escapeHtml(cat)}')" class="px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${activeCategory === cat ? 'bg-slate-900 text-white border-slate-900 shadow-sm' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}">
+        <button onclick="setCategory('${escapeHtml(cat)}')" class="px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${activeCategory === cat ? 'bg-slate-900 text-white border-slate-900 shadow-sm' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}">
           ${escapeHtml(cat)}
         </button>
       `).join('');
@@ -1027,6 +1159,12 @@
         const isCollapsed = !!todo.collapsed;
         const childrenHTML = (!isCollapsed && hasChildren) ? renderTaskTree(todo.id, level + 1) : '';
 
+        // Détermination de la couleur d'état pour le mode miniature (<10%)
+        const state = getTaskState(todo.id);
+        let miniColorClass = 'mini-red';
+        if (state === 'green') miniColorClass = 'mini-green';
+        else if (state === 'orange') miniColorClass = 'mini-orange';
+
         let prioBorder = '';
         if (todo.priority === 1) prioBorder = 'border-l-4 border-l-slate-400';
         else if (todo.priority === 2) prioBorder = 'border-l-4 border-l-blue-500';
@@ -1038,17 +1176,17 @@
           : `<svg class="w-4 h-4 text-slate-500 fill-current" viewBox="0 0 20 20"><path d="M4 6l6 10 6-10H4z"/></svg>`;
 
         return `
-          <div class="flex items-start gap-1 transition-all rounded-2xl ${level > 0 ? 'ml-4 mt-2 pl-1 border-l-2 border-slate-200/70' : 'mt-2.5'}"
+          <div class="task-item-wrapper flex items-start gap-1 transition-all rounded-2xl ${level > 0 ? 'ml-4 mt-1.5 pl-1 border-l-2 border-slate-200/70' : 'mt-2'}"
                ondragover="handleDragOver(event)" ondrop="handleDrop(event, ${todo.id})" ondragenter="handleDragEnter(event)" ondragleave="handleDragLeave(event)">
             
-            <div draggable="true" ondragstart="handleDragStart(event, ${todo.id})" class="cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-500 mt-[18px] px-1 drag-handle shrink-0" title="Déplacer (Drag & Drop)">
+            <div draggable="true" ondragstart="handleDragStart(event, ${todo.id})" class="cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-500 mt-[14px] px-1 drag-handle shrink-0" title="Déplacer (Drag & Drop)">
               <svg class="w-4 h-4 fill-current" viewBox="0 0 20 20"><path d="M7 2a2 2 0 10-4 0 2 2 0 004 0zm0 8a2 2 0 10-4 0 2 2 0 004 0zm0 8a2 2 0 10-4 0 2 2 0 004 0zm8-16a2 2 0 10-4 0 2 2 0 004 0zm0 8a2 2 0 10-4 0 2 2 0 004 0zm0 8a2 2 0 10-4 0 2 2 0 004 0z"/></svg>
             </div>
 
             <div class="flex-1 w-full min-w-0">
               <div id="task-card-${todo.id}"
                 onclick="openModal(${todo.id})"
-                class="task-card-bg flex items-start justify-between gap-2.5 p-3 rounded-2xl border transition-all cursor-pointer ${
+                class="task-card-bg flex items-start justify-between gap-2.5 p-2.5 rounded-2xl border transition-all cursor-pointer ${miniColorClass} ${
                   todo.completed ? 'bg-slate-50 border-slate-100 opacity-60' : 
                   isGriser ? 'bg-slate-100/70 border-slate-200 opacity-50' : 
                   'bg-white border-slate-200 shadow-sm hover:border-slate-300'
@@ -1101,7 +1239,7 @@
       countEl.textContent = `${activeCount} tâche${activeCount > 1 ? 's' : ''} restante${activeCount > 1 ? 's' : ''}`;
     }
 
-    updateCategories(); initRealtime(); syncCloud();
+    updateCategories(); initRealtime(); syncCloud(); applyZoom(1.0);
   </script>
 </body>
 </html>
