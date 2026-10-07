@@ -1,10 +1,10 @@
-<!-- TODOAPP - Version 1.4.8 (Mise à jour UI/UX) -->
+<!-- TODOAPP - Version 1.5.0 (Correction Splash Screen) -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>TODOAPP - v1.4.8</title>
+  <title>TODOAPP - v1.5.0</title>
   
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -21,195 +21,42 @@
     }
     body {
       -webkit-tap-highlight-color: transparent;
-      /* Suppression des marges forcées pour utiliser tout l'écran iOS */
-      padding-top: env(safe-area-inset-top);
-      padding-bottom: env(safe-area-inset-bottom);
-      padding-left: env(safe-area-inset-left);
-      padding-right: env(safe-area-inset-right);
-    }
-    .scrollbar-none::-webkit-scrollbar {
-      display: none;
-    }
-    .scrollbar-none {
-      -ms-overflow-style: none;
-      scrollbar-width: none;
-    }
-    input, select, textarea {
-      font-size: 16px !important;
-    }
-    #splash-screen {
-      transition: opacity 0.4s ease-out, visibility 0.4s ease-out;
-    }
-    #splash-screen.hidden-splash {
-      opacity: 0;
-      visibility: hidden;
-    }
-    @keyframes highlightPulse {
-      0% { background-color: rgba(250, 204, 21, 0.6); transform: scale(1.02); box-shadow: 0 0 15px rgba(250, 204, 21, 0.4); }
-      100% { background-color: transparent; transform: scale(1); box-shadow: none; }
-    }
-    .highlight-task {
-      animation: highlightPulse 1.5s ease-out;
-      z-index: 10;
-      position: relative;
-    }
-    
-    .drop-target-active {
-      position: relative;
-    }
-    .drop-target-active::before {
-      content: '';
-      position: absolute;
-      top: -4px;
-      left: 0;
-      right: 0;
-      height: 4px;
-      background-color: #6366f1;
-      box-shadow: 0 0 10px #6366f1, 0 0 5px #6366f1;
-      border-radius: 9999px;
-      z-index: 50;
-      pointer-events: none;
-    }
-
-    #category-tabs {
-      cursor: pointer;
-      user-select: none;
-    }
-
-    /* Styles pour le Viewport et Zoom */
-    #viewport {
-      width: 100%;
-      height: calc(100vh - 140px);
-      overflow: auto;
-      position: relative;
-      touch-action: pan-x pan-y;
-      scrollbar-width: none; 
-      -ms-overflow-style: none;
-    }
-    #viewport::-webkit-scrollbar {
-      display: none;
-    }
-
-    #zoom-container {
-      transform-origin: 0 0;
-      will-change: transform, width;
-      min-width: 100%;
-      padding-bottom: 100px;
-      transition: transform 0.1s ease-out, width 0.1s ease-out;
-    }
-
-    /* 1. Colonnes CSS : Passage à 2 colonnes plus tôt (dès 640px de largeur globale) */
-    #task-tree {
-      column-width: 320px;
-      column-gap: 16px;
-      width: 100%;
-    }
-
-    .task-item-wrapper {
-      break-inside: avoid;
-      page-break-inside: avoid;
-      margin-bottom: 10px;
-    }
-
-    /* 2. Mode Heatmap (< 15%) : Conservation de l'échelle dynamique */
-    #zoom-container.mini-mode .task-card-bg > * {
-      display: none !important; 
-    }
-    #zoom-container.mini-mode .task-card-bg {
-      height: 120px !important;
-      padding: 0 !important;
-    }
-    #zoom-container.mini-mode .drag-handle { display: none !important; }
-
-    /* Encadrement par État */Voici la version mise à jour du code (v1.4.9) intégrant l'ensemble de tes demandes avec précision :
-
-*   **Suppression des bandes blanches (iOS) :** Le conteneur principal a été repensé sans `max-w-2xl` ni marges imposées et les paddings latéraux ont été réduits au minimum vital pour utiliser toute la largeur de l'écran.
-*   **Moins zoomé au départ :** Les paddings des cartes ont été réduits (`p-2` au lieu de `p-3`), les checkboxs et les boutons repassent à une taille ergonomique mais plus compacte (`w-6`, `text-2xl`) pour te permettre de voir 10 tâches d'un coup.
-*   **Colonnes et Heatmap :** Le passage en 2 colonnes se fait plus tôt (dès que l'écran ou le zoom virtuel dépasse `320px` de large par colonne), et le mode bloc de couleur (Heatmap) se déclenche plus tard (à `15%` de zoom et moins).
-*   **Bordures de priorités maintenues :** Une règle CSS compense désormais mathématiquement la réduction d'échelle pour que la bordure latérale s'épaississe et reste visible même en mode petits blocs.
-*   **Barre de zoom intégrée :** Elle apparaît désormais en "overlay" parfait (recouvrant exactement le titre et l'icône de synchronisation), les boutons + et - sont sécurisés avec `shrink-0` pour iOS, et le pourcentage est écrit au centre.
-*   **Barre de progression globale :** Insérée sans déplacer le reste de la page, juste à la place de l'ancienne bordure de séparation sous les catégories. Elle contient 100 nuances (rouge -> orange -> jaune -> vert) calculées automatiquement en HSL, et affiche le pourcentage dans la même couleur juste au-dessus à droite.
-*   **Barres des sous-tâches :** Toute tâche contenant des sous-tâches affichera désormais sa propre barre interne (avec la même logique de 100 nuances de couleur) sous ses tags pour juger l'avancement global de son arborescence.
-
-```html
-<!-- TODOAPP - Version 1.4.9 (Interface iOS Full, Heatmap retardée, Progress Bars 100 nuances) -->
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>TODOAPP - v1.4.9</title>
-  
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#0f172a">
-  
-  <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
-  <script src="[https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2](https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2)"></script>
-  <style>
-    html, body {
-      background-color: #0f172a;
-      overflow: hidden; 
-      height: 100vh;
-      margin: 0;
-    }
-    body {
-      -webkit-tap-highlight-color: transparent;
       padding-top: max(0.5rem, env(safe-area-inset-top));
       padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
       padding-left: env(safe-area-inset-left);
       padding-right: env(safe-area-inset-right);
     }
-    .scrollbar-none::-webkit-scrollbar {
-      display: none;
-    }
-    .scrollbar-none {
-      -ms-overflow-style: none;
-      scrollbar-width: none;
-    }
-    input, select, textarea {
-      font-size: 16px !important;
-    }
+    .scrollbar-none::-webkit-scrollbar { display: none; }
+    .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+    input, select, textarea { font-size: 16px !important; }
+
     #splash-screen {
       transition: opacity 0.4s ease-out, visibility 0.4s ease-out;
     }
     #splash-screen.hidden-splash {
       opacity: 0;
       visibility: hidden;
+      pointer-events: none;
     }
+
     @keyframes highlightPulse {
       0% { background-color: rgba(250, 204, 21, 0.6); transform: scale(1.02); box-shadow: 0 0 15px rgba(250, 204, 21, 0.4); }
       100% { background-color: transparent; transform: scale(1); box-shadow: none; }
     }
-    .highlight-task {
-      animation: highlightPulse 1.5s ease-out;
-      z-index: 10;
-      position: relative;
-    }
+    .highlight-task { animation: highlightPulse 1.5s ease-out; z-index: 10; position: relative; }
     
-    .drop-target-active {
-      position: relative;
-    }
+    .drop-target-active { position: relative; }
     .drop-target-active::before {
       content: '';
       position: absolute;
-      top: -4px;
-      left: 0;
-      right: 0;
-      height: 4px;
+      top: -4px; left: 0; right: 0; height: 4px;
       background-color: #6366f1;
       box-shadow: 0 0 10px #6366f1, 0 0 5px #6366f1;
-      border-radius: 9999px;
-      z-index: 50;
-      pointer-events: none;
+      border-radius: 9999px; z-index: 50; pointer-events: none;
     }
 
-    #category-tabs {
-      cursor: pointer;
-      user-select: none;
-    }
+    #category-tabs { cursor: pointer; user-select: none; }
 
-    /* Styles pour le Viewport et Zoom */
     #viewport {
       width: 100%;
       height: calc(100vh - 140px);
@@ -219,9 +66,7 @@
       scrollbar-width: none; 
       -ms-overflow-style: none;
     }
-    #viewport::-webkit-scrollbar {
-      display: none;
-    }
+    #viewport::-webkit-scrollbar { display: none; }
 
     #zoom-container {
       transform-origin: 0 0;
@@ -231,7 +76,6 @@
       transition: transform 0.1s ease-out, width 0.1s ease-out;
     }
 
-    /* 1. Colonnes CSS : 320px force le passage à 2 colonnes bien plus tôt */
     #task-tree {
       column-width: 320px;
       column-gap: 12px;
@@ -244,40 +88,29 @@
       margin-bottom: 10px;
     }
 
-    /* 2. Mode Heatmap (< 15%) */
-    #zoom-container.mini-mode .task-card-bg > * {
-      display: none !important; 
-    }
-    #zoom-container.mini-mode .task-card-bg {
-      height: 120px !important; 
-      padding: 0 !important;
-    }
+    #zoom-container.mini-mode .task-card-bg > * { display: none !important; }
+    #zoom-container.mini-mode .task-card-bg { height: 120px !important; padding: 0 !important; }
     #zoom-container.mini-mode .drag-handle { display: none !important; }
 
-    /* Encadrement par État */
     .status-border-red { border: 2px solid #f43f5e !important; }
     .status-border-orange { border: 2px solid #f59e0b !important; }
     .status-border-green { border: 2px solid #10b981 !important; }
 
-    /* Mode Heatmap - Couleurs pleines */
     #zoom-container.mini-mode .task-card-bg.status-border-red { background-color: #f43f5e !important; }
     #zoom-container.mini-mode .task-card-bg.status-border-orange { background-color: #f59e0b !important; }
     #zoom-container.mini-mode .task-card-bg.status-border-green { background-color: #10b981 !important; }
 
-    /* 3. Liserets de priorités robustes */
     .prio-1 { border-left: 6px solid #94a3b8 !important; }
     .prio-2 { border-left: 6px solid #3b82f6 !important; }
     .prio-3 { border-left: 6px solid #f97316 !important; }
     .prio-4 { border-left: 6px solid #ef4444 !important; }
 
-    /* Liserets de priorités qui grossissent dynamiquement en Mode Heatmap pour rester visibles ! */
     #zoom-container.mini-mode .prio-1,
     #zoom-container.mini-mode .prio-2,
     #zoom-container.mini-mode .prio-3,
     #zoom-container.mini-mode .prio-4 {
       border-left-width: 24px !important;
     }
-
   </style>
 </head>
 <body class="bg-white text-slate-800 font-sans h-screen flex flex-col relative">
@@ -289,27 +122,24 @@
     <button onclick="document.getElementById('debug-banner').classList.add('hidden')" class="bg-rose-800 px-2 py-0.5 rounded text-[10px]">✕</button>
   </div>
 
+  <!-- Splash screen avec secours d'extinction -->
   <div id="splash-screen" class="fixed inset-0 z-[100] bg-slate-900 flex items-center justify-center">
-    <img src="splashlogo.jpg" alt="Splash Screen" class="w-full h-full object-cover">
+    <img src="splashlogo.jpg" alt="Splash Screen" class="w-full h-full object-cover" onerror="hideSplashScreen()">
   </div>
 
-  <!-- Conteneur iOS Full Width, sans marges parasites -->
   <div class="w-full h-full flex flex-col justify-between pt-2 px-2">
     <div class="flex flex-col h-full overflow-hidden">
       <header class="mb-2 shrink-0">
         
         <div class="flex justify-between items-center mb-1 gap-1 sm:gap-2 relative" id="header-top-row">
-          
           <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <h1 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">TODOAPP</h1>
             <span id="sync-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0"></span>
-            <span class="text-xs text-slate-500 font-bold inline-block">v1.4.9</span>
+            <span class="text-xs text-slate-500 font-bold inline-block">v1.5.0</span>
           </div>
 
           <div class="flex items-center gap-1 shrink-0">
-            <!-- 4. Bouton Hélicoptère -->
             <button id="zoom-toggle-btn" onclick="toggleZoomBar()" class="text-xl w-8 h-8 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded-lg shrink-0 transition-colors" title="Zoom">🚁</button>
-            
             <button onclick="syncCloud()" class="w-8 h-8 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 text-xs font-semibold flex items-center justify-center transition-colors shrink-0" title="Synchroniser">
               <span id="sync-icon">🔄</span>
             </button>
@@ -318,20 +148,17 @@
             </button>
           </div>
 
-          <!-- Barre de zoom intégrée par-dessus (Absolute overlay) -->
           <div id="zoom-bar-container" class="hidden absolute inset-0 bg-white/95 backdrop-blur-sm z-[150] flex items-center justify-between px-1 gap-1 sm:gap-2 rounded-lg border border-slate-100">
-             <button onclick="adjustZoom(-0.05)" class="text-slate-600 hover:text-slate-900 font-extrabold text-3xl px-3 py-1 bg-slate-100 hover:bg-slate-200 rounded-xl leading-none shrink-0" title="Dézoomer">-</button>
+             <button onclick="adjustZoom(-0.05)" class="text-slate-600 hover:text-slate-900 font-extrabold text-3xl px-3 py-1 bg-slate-100 hover:bg-slate-200 rounded-xl leading-none shrink-0">-</button>
              <input type="range" id="zoom-range" min="0.1" max="1.0" step="0.01" value="1.0" oninput="onZoomSliderChange(this.value)" class="flex-1 accent-slate-900 cursor-pointer h-3 bg-slate-300 rounded-lg mx-1">
-             <button onclick="adjustZoom(0.05)" class="text-slate-600 hover:text-slate-900 font-extrabold text-3xl px-3 py-1 bg-slate-100 hover:bg-slate-200 rounded-xl leading-none shrink-0" title="Zoomer">+</button>
+             <button onclick="adjustZoom(0.05)" class="text-slate-600 hover:text-slate-900 font-extrabold text-3xl px-3 py-1 bg-slate-100 hover:bg-slate-200 rounded-xl leading-none shrink-0">+</button>
              <span id="zoom-percent-display" class="text-xs font-extrabold text-slate-800 w-11 text-center shrink-0">100%</span>
              <button onclick="toggleZoomBar()" class="ml-1 text-slate-500 hover:text-rose-500 text-xl font-bold bg-slate-100 hover:bg-slate-200 w-10 h-10 flex items-center justify-center rounded-xl shrink-0 transition-colors">✕</button>
           </div>
-
         </div>
 
         <div class="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none" id="category-tabs"></div>
         
-        <!-- Barre de progression globale (100 nuances) juste sous les onglets -->
         <div class="relative w-full h-1.5 bg-slate-100 mt-1 mb-3 rounded-full flex items-center">
             <div id="global-progress-bar" class="h-full rounded-full transition-all duration-300" style="width: 0%; background-color: hsl(0, 100%, 45%);"></div>
             <div id="global-progress-text" class="absolute right-0 -top-4 text-[10px] font-extrabold" style="color: hsl(0, 100%, 45%);">0%</div>
@@ -428,7 +255,7 @@
       <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-200">
         <div>
           <div class="text-xs font-bold text-slate-800">Version de l'application</div>
-          <div class="text-[11px] text-slate-500">v1.4.9 (Cache: todoapp_v149)</div>
+          <div class="text-[11px] text-slate-500">v1.5.0 (Cache: todoapp_v150)</div>
         </div>
         <button onclick="forceAppUpdate()" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800">Forcer MaJ</button>
       </div>
@@ -436,7 +263,7 @@
   </div>
 
   <script>
-    const CACHE_NAME = 'todoapp_v149';
+    const CACHE_NAME = 'todoapp_v150';
 
     if ('serviceWorker' in navigator) {
       const swCode = `
@@ -457,6 +284,21 @@
       window.location.reload(true);
     }
 
+    // Gestion du Splash Screen blindée
+    let splashHidden = false;
+    function hideSplashScreen() {
+      if (splashHidden) return;
+      splashHidden = true;
+      const splash = document.getElementById('splash-screen');
+      if (splash) {
+        splash.classList.add('hidden-splash');
+        setTimeout(() => splash.style.display = 'none', 450);
+      }
+    }
+
+    // Sécurité ultime : masque le splash au bout de 1,5s quoi qu'il arrive
+    setTimeout(hideSplashScreen, 1500);
+
     function toggleZoomBar() {
       const bar = document.getElementById('zoom-bar-container');
       bar.classList.toggle('hidden');
@@ -476,7 +318,6 @@
         container.style.width = (100 / currentZoom) + '%';
         container.style.transform = `scale(${currentZoom})`;
         
-        // Mode heatmap déclenché beaucoup plus tard (15%)
         if (currentZoom <= 0.15) {
           container.className = 'mini-mode';
         } else {
@@ -524,9 +365,7 @@
         }
       }, { passive: true });
 
-      viewportEl.addEventListener('touchend', () => {
-        initialTouchDistance = null;
-      });
+      viewportEl.addEventListener('touchend', () => { initialTouchDistance = null; });
     }
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -557,11 +396,11 @@
       }
     });
 
-    const SUPABASE_URL = "[https://bwirwhcetlfwzqswbfwr.supabase.co](https://bwirwhcetlfwzqswbfwr.supabase.co)";
+    const SUPABASE_URL = "https://bwirwhcetlfwzqswbfwr.supabase.co";
     const SUPABASE_KEY = "sb_publishable_6f1T8ttm3Lc0yTSqsHUikA_XW5eo3X7";
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const STORAGE_KEY = 'todoapp_tasks_v149';
+    const STORAGE_KEY = 'todoapp_tasks_v150';
 
     function generateSafeId() {
       return Math.floor((Date.now() % 1000000000)) * 1000 + Math.floor(Math.random() * 1000);
@@ -586,8 +425,8 @@
     }
 
     let rawLocal = localStorage.getItem(STORAGE_KEY) || 
-                   localStorage.getItem('todoapp_tasks_v148') || 
-                   localStorage.getItem('todoapp_tasks_v147') || '[]';
+                   localStorage.getItem('todoapp_tasks_v149') || 
+                   localStorage.getItem('todoapp_tasks_v148') || '[]';
     
     let todos = sanitizeTodosList(JSON.parse(rawLocal));
 
@@ -626,19 +465,6 @@
       localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
       updateCategories();
       render();
-    }
-
-    const splashStartTime = Date.now();
-    function hideSplashScreen() {
-      const elapsed = Date.now() - splashStartTime;
-      const remaining = Math.max(0, 500 - elapsed);
-      setTimeout(() => {
-        const splash = document.getElementById('splash-screen');
-        if (splash) {
-          splash.classList.add('hidden-splash');
-          setTimeout(() => splash.style.display = 'none', 450);
-        }
-      }, remaining);
     }
 
     function updateSyncStatus(online, msg) {
@@ -716,7 +542,6 @@
           console.error("Erreur Sync Supabase:", error);
           showDebugError(error.message);
           updateSyncStatus(false, error.message);
-          hideSplashScreen();
           return;
         }
 
@@ -935,10 +760,8 @@
     function handleModalKeyDown(e) {
       if (e.key === 'Enter') {
         if (e.target.tagName === 'TEXTAREA' && e.shiftKey) return;
-        
         const linkSuggestions = document.getElementById('task-link-suggestions');
         if (linkSuggestions && !linkSuggestions.classList.contains('hidden')) return;
-        
         const tagSuggestions = document.getElementById('tag-suggestions');
         if (tagSuggestions && !tagSuggestions.classList.contains('hidden')) return;
 
@@ -1377,7 +1200,6 @@
           ? `<svg class="w-6 h-6 text-slate-500 fill-current" viewBox="0 0 20 20"><path d="M6 4l10 6-10 6V4z"/></svg>`
           : `<svg class="w-6 h-6 text-slate-500 fill-current" viewBox="0 0 20 20"><path d="M4 6l6 10 6-10H4z"/></svg>`;
 
-        // Calcul de la barre de sous-tâches interne (Descendants)
         let subtaskProgressHtml = '';
         if (hasChildren) {
           const allDescendants = [];
@@ -1417,7 +1239,6 @@
                   'bg-white shadow-sm hover:border-slate-400'
                 }"
               >
-                <!-- Checkbox -->
                 <input 
                   type="checkbox" 
                   ${todo.completed ? 'checked' : ''} 
@@ -1444,7 +1265,6 @@
                   ${subtaskProgressHtml}
                 </div>
 
-                <!-- Boutons redimensionnés de manière plus ergonomique -->
                 <div class="flex items-center gap-0.5 shrink-0">
                   ${hasChildren ? `<button onclick="toggleCollapse(event, ${todo.id})" class="p-1.5 text-slate-400 hover:text-slate-900 rounded-lg shrink-0" title="${isCollapsed ? 'Déplier' : 'Plier'}">${arrowSvg}</button>` : ''}
                   <button onclick="addSubtask(event, ${todo.id})" class="px-2 py-1 text-slate-400 hover:text-slate-900 font-bold text-2xl rounded-lg leading-none shrink-0" title="Sous-tâche">+</button>
@@ -1467,13 +1287,12 @@
       const activeCount = todos.filter(t => !t.completed).length;
       countEl.textContent = `${activeCount} tâche${activeCount > 1 ? 's' : ''} restante${activeCount > 1 ? 's' : ''}`;
       
-      // Mise à jour de la grande barre de progression globale
       updateGlobalProgress();
     }
 
-    updateCategories(); initRealtime(); syncCloud(); 
-    
-    // Zoom d'origine rétabli
+    updateCategories(); 
+    initRealtime(); 
+    syncCloud(); 
     applyZoom(1.0); 
   </script>
 </body>
