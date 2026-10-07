@@ -1,10 +1,10 @@
-<!-- TODOAPP - Version 1.4.7 (Zoom 80% Max, Masonry Columns, Enhanced UI & Status Borders) - 528 lines -->
+<!-- TODOAPP - Version 1.4.8 (Zoom Hélicoptère, Masonry Dynamique, Échelle 100%, Gros Contrôles) -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>TODOAPP - v1.4.7</title>
+  <title>TODOAPP - v1.4.8</title>
   
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -53,7 +53,6 @@
       position: relative;
     }
     
-    /* 4. Drag & Drop (Ligne de visée indigo brillante) */
     .drop-target-active {
       position: relative;
     }
@@ -98,10 +97,10 @@
       transition: transform 0.1s ease-out, width 0.1s ease-out;
     }
 
-    /* 1. Colonnes CSS (Masonry : Remplissage de haut en bas puis colonne suivante) */
+    /* 1. Colonnes CSS : 600px force 1 colonne à 100% de zoom, et permet 2, 3 colonnes en dézoomant */
     #task-tree {
-      column-width: 300px;
-      column-gap: 12px;
+      column-width: 600px;
+      column-gap: 16px;
       width: 100%;
     }
 
@@ -111,66 +110,43 @@
       margin-bottom: 12px;
     }
 
-    /* 5. Mode Heatmap (< 30%) : Transformation propre en carrés pleins colorés sans texte */
-    #zoom-container.mini-mode #task-tree {
-      column-width: auto !important;
-      display: flex !important;
-      flex-wrap: wrap !important;
-      gap: 8px !important;
-      align-content: flex-start !important;
-    }
-    #zoom-container.mini-mode .task-item-wrapper {
-      display: block !important;
-      width: 48px !important;
-      height: 48px !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      border: none !important;
-    }
-    #zoom-container.mini-mode .task-card-bg {
-      padding: 0 !important;
-      width: 100% !important;
-      height: 100% !important;
-      min-height: 0 !important;
-      border-radius: 10px !important;
-      box-shadow: none !important;
-    }
+    /* 2. Mode Heatmap (< 30%) : Conservation de l'échelle dynamique, seuls les textes disparaissent */
     #zoom-container.mini-mode .task-card-bg > * {
       display: none !important; 
     }
+    #zoom-container.mini-mode .task-card-bg {
+      height: 120px !important; /* Hauteur relative préservant la logique de bloc scalable */
+      padding: 0 !important;
+    }
+    #zoom-container.mini-mode .drag-handle { display: none !important; }
 
-    /* 6. Encadrement par État : Bordure épaisse de 2px colorée selon le statut */
-    .status-border-red {
-      border: 2px solid #f43f5e !important;
-    }
-    .status-border-orange {
-      border: 2px solid #f59e0b !important;
-    }
-    .status-border-green {
-      border: 2px solid #10b981 !important;
-    }
+    /* Encadrement par État : Bordure épaisse de 2px colorée selon le statut */
+    .status-border-red { border: 2px solid #f43f5e !important; }
+    .status-border-orange { border: 2px solid #f59e0b !important; }
+    .status-border-green { border: 2px solid #10b981 !important; }
 
-    /* Couleurs de fond mini-blocs en mode heatmap */
+    /* Mode Heatmap - Couleurs pleines */
     #zoom-container.mini-mode .task-card-bg.status-border-red { background-color: #f43f5e !important; }
     #zoom-container.mini-mode .task-card-bg.status-border-orange { background-color: #f59e0b !important; }
     #zoom-container.mini-mode .task-card-bg.status-border-green { background-color: #10b981 !important; }
 
-    #zoom-container.mini-mode .drag-handle { display: none !important; }
+    /* 3. Liserets de priorités robustes, ils surchargent la bordure de statut */
+    .prio-1 { border-left: 6px solid #94a3b8 !important; }
+    .prio-2 { border-left: 6px solid #3b82f6 !important; }
+    .prio-3 { border-left: 6px solid #f97316 !important; }
+    .prio-4 { border-left: 6px solid #ef4444 !important; }
 
   </style>
 </head>
 <body class="bg-white text-slate-800 font-sans h-screen flex flex-col relative">
 
-  <!-- SUGGESTIONS DE LIENS DE TÂCHES -->
   <ul id="task-link-suggestions" class="hidden absolute bg-white border border-slate-200 rounded-xl shadow-2xl z-[200] max-h-40 overflow-y-auto w-64 text-sm"></ul>
 
-  <!-- BANDEAU D'ALERTE DIAGNOSTIC BDD -->
   <div id="debug-banner" class="hidden bg-rose-600 text-white text-xs font-bold px-4 py-2 text-center fixed top-0 left-0 right-0 z-[110] shadow-md flex justify-between items-center">
     <span id="debug-msg" class="truncate pr-2">Erreur Supabase</span>
     <button onclick="document.getElementById('debug-banner').classList.add('hidden')" class="bg-rose-800 px-2 py-0.5 rounded text-[10px]">✕</button>
   </div>
 
-  <!-- SPLASH SCREEN -->
   <div id="splash-screen" class="fixed inset-0 z-[100] bg-slate-900 flex items-center justify-center">
     <img src="splashlogo.jpg" alt="Splash Screen" class="w-full h-full object-cover">
   </div>
@@ -178,20 +154,26 @@
   <div class="max-w-2xl mx-auto w-full h-full flex flex-col justify-between pt-2 px-4">
     <div class="flex flex-col h-full overflow-hidden">
       <header class="mb-3 shrink-0">
-        <!-- 2. Ergonomie Mobile & Header : Boutons Sync et Réglages préservés -->
         <div class="flex justify-between items-center mb-2 gap-1 sm:gap-2">
+          
           <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <h1 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">TODOAPP</h1>
             <span id="sync-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0"></span>
-            <span class="text-xs text-slate-400 font-medium hidden sm:inline-block">v1.4.7</span>
+            <!-- La version est à nouveau toujours visible (même sur iOS) -->
+            <span class="text-xs text-slate-500 font-bold inline-block">v1.4.8</span>
           </div>
 
-          <!-- BARRE DE ZOOM ET ACTIONS (Rétrécie sur mobile pour garantir la visibilité des boutons) -->
           <div class="flex items-center gap-1 shrink-0">
-            <div class="flex items-center gap-0.5 sm:gap-1 bg-slate-100 px-1 py-1 rounded-xl border border-slate-200">
-              <button onclick="adjustZoom(-0.05)" class="text-slate-600 hover:text-slate-900 font-extrabold text-base sm:text-lg leading-none px-1" title="Dézoomer">-</button>
-              <input type="range" id="zoom-range" min="0.1" max="0.8" step="0.01" value="0.8" oninput="onZoomSliderChange(this.value)" class="w-10 sm:w-16 accent-slate-900 cursor-pointer h-1 bg-slate-300 rounded-lg">
-              <button onclick="adjustZoom(0.05)" class="text-slate-600 hover:text-slate-900 font-extrabold text-base sm:text-lg leading-none px-1" title="Zoomer">+</button>
+            <!-- 4. Hélicoptère Zoom Bar Rétractable -->
+            <div id="zoom-controls-wrapper" class="relative flex items-center">
+               <button id="zoom-toggle-btn" onclick="toggleZoomBar()" class="text-xl w-8 h-8 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded-lg shrink-0 transition-colors" title="Zoom">🚁</button>
+               
+               <div id="zoom-bar-container" class="hidden absolute right-0 top-10 sm:top-0 sm:right-10 bg-white px-3 py-2 rounded-2xl border border-slate-200 shadow-2xl flex items-center gap-2 z-[150] min-w-[220px] justify-between">
+                 <button onclick="adjustZoom(-0.05)" class="text-slate-600 hover:text-slate-900 font-extrabold text-2xl leading-none px-2" title="Dézoomer">-</button>
+                 <input type="range" id="zoom-range" min="0.1" max="1.0" step="0.01" value="1.0" oninput="onZoomSliderChange(this.value)" class="flex-1 accent-slate-900 cursor-pointer h-2 bg-slate-300 rounded-lg mx-2">
+                 <button onclick="adjustZoom(0.05)" class="text-slate-600 hover:text-slate-900 font-extrabold text-2xl leading-none px-2" title="Zoomer">+</button>
+                 <button onclick="toggleZoomBar()" class="ml-2 text-slate-400 hover:text-rose-500 text-lg font-bold">✕</button>
+               </div>
             </div>
             
             <button onclick="syncCloud()" class="w-8 h-8 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 text-xs font-semibold flex items-center justify-center transition-colors shrink-0" title="Synchroniser">
@@ -207,10 +189,9 @@
 
       <form onsubmit="addTask(event)" class="flex gap-1.5 mb-3 shrink-0 relative">
         <input type="text" id="task-input" placeholder="Ajouter une tâche... (utilisez $ pour lier)" oninput="handleTaskLinkAutocomplete(event)" class="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-900" required>
-        <button type="submit" class="bg-slate-900 text-white rounded-xl px-3 py-1.5 font-bold text-sm hover:bg-slate-800">+</button>
+        <button type="submit" class="bg-slate-900 text-white rounded-xl px-4 py-1.5 font-bold text-lg hover:bg-slate-800">+</button>
       </form>
 
-      <!-- VIEWPORT ET CONTENEUR ZOOMABLE -->
       <div id="viewport">
         <div id="zoom-container">
           <div id="task-tree"></div>
@@ -229,7 +210,7 @@
     <div class="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto space-y-5" onclick="event.stopPropagation()">
       <div class="flex justify-between items-center border-b pb-3 border-slate-100">
         <h3 class="font-extrabold text-lg text-slate-900" id="modal-heading">Éditer la tâche</h3>
-        <button onclick="closeModal()" class="text-slate-400 hover:text-slate-700 text-2xl font-bold">&times;</button>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-slate-700 text-3xl font-bold">&times;</button>
       </div>
       <div class="relative">
         <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Titre</label>
@@ -261,7 +242,7 @@
       <div class="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
         <label class="flex items-center justify-between cursor-pointer">
           <span class="text-xs font-bold text-slate-700 uppercase">Mise en pause</span>
-          <input type="checkbox" id="modal-paused" onchange="togglePauseOptions()" class="w-5 h-5 accent-slate-900 rounded">
+          <input type="checkbox" id="modal-paused" onchange="togglePauseOptions()" class="w-6 h-6 accent-slate-900 rounded">
         </label>
         <div id="pause-options" class="hidden pt-2 border-t border-slate-200 space-y-1.5">
           <span class="text-[11px] font-semibold text-slate-500 block">Option de pause :</span>
@@ -271,7 +252,7 @@
           </div>
         </div>
       </div>
-      <button onclick="saveModal()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-2xl shadow-md">Enregistrer</button>
+      <button onclick="saveModal()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-2xl shadow-md text-lg">Enregistrer</button>
     </div>
   </div>
 
@@ -280,7 +261,7 @@
     <div class="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl border border-slate-100 space-y-5" onclick="event.stopPropagation()">
       <div class="flex justify-between items-center border-b pb-3 border-slate-100">
         <h3 class="font-extrabold text-lg text-slate-900">Réglages</h3>
-        <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-slate-700 text-2xl font-bold">&times;</button>
+        <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-slate-700 text-3xl font-bold">&times;</button>
       </div>
       <div class="flex items-center justify-between gap-3 p-1">
         <label for="sort-select" class="text-xs font-bold text-slate-700 uppercase">Ordre d'affichage</label>
@@ -295,7 +276,7 @@
       <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-200">
         <div>
           <div class="text-xs font-bold text-slate-800">Version de l'application</div>
-          <div class="text-[11px] text-slate-500">v1.4.7 (Cache: todoapp_v147)</div>
+          <div class="text-[11px] text-slate-500">v1.4.8 (Cache: todoapp_v148)</div>
         </div>
         <button onclick="forceAppUpdate()" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800">Forcer MaJ</button>
       </div>
@@ -303,7 +284,7 @@
   </div>
 
   <script>
-    const CACHE_NAME = 'todoapp_v147';
+    const CACHE_NAME = 'todoapp_v148';
 
     if ('serviceWorker' in navigator) {
       const swCode = `
@@ -324,10 +305,24 @@
       window.location.reload(true);
     }
 
-    // 1. SYSTÈME DE ZOOM : Fixer le zoom max à 0.8 (80%) par défaut. Impossible de zoomer plus gros.
-    let currentZoom = 0.8; 
+    // Gestion de la barre Helicopter Zoom
+    function toggleZoomBar() {
+      const bar = document.getElementById('zoom-bar-container');
+      bar.classList.toggle('hidden');
+    }
+
+    document.addEventListener('mousedown', (e) => {
+      const bar = document.getElementById('zoom-bar-container');
+      const btn = document.getElementById('zoom-toggle-btn');
+      if (bar && !bar.classList.contains('hidden') && !bar.contains(e.target) && !btn.contains(e.target)) {
+          bar.classList.add('hidden');
+      }
+    });
+
+    // Échelle rétablie à 100% de base (1.0)
+    let currentZoom = 1.0; 
     const minZoom = 0.1;   
-    const maxZoom = 0.8;   
+    const maxZoom = 1.0;   
 
     function applyZoom(newZoom) {
       currentZoom = Math.max(minZoom, Math.min(maxZoom, newZoom));
@@ -338,7 +333,6 @@
         container.style.width = (100 / currentZoom) + '%';
         container.style.transform = `scale(${currentZoom})`;
         
-        // 5. Mode Heatmap (< 30%)
         if (currentZoom < 0.30) {
           container.className = 'mini-mode';
         } else {
@@ -348,15 +342,9 @@
       if (range) range.value = currentZoom;
     }
 
-    function adjustZoom(delta) {
-      applyZoom(currentZoom + delta);
-    }
+    function adjustZoom(delta) { applyZoom(currentZoom + delta); }
+    function onZoomSliderChange(val) { applyZoom(parseFloat(val)); }
 
-    function onZoomSliderChange(val) {
-      applyZoom(parseFloat(val));
-    }
-
-    // Ctrl + Scroll & Pinch to Zoom
     const viewportEl = document.getElementById('viewport');
     if (viewportEl) {
       viewportEl.addEventListener('wheel', (e) => {
@@ -424,12 +412,11 @@
       }
     });
 
-    // CONFIGURATION SUPABASE
     const SUPABASE_URL = "https://bwirwhcetlfwzqswbfwr.supabase.co";
     const SUPABASE_KEY = "sb_publishable_6f1T8ttm3Lc0yTSqsHUikA_XW5eo3X7";
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const STORAGE_KEY = 'todoapp_tasks_v146';
+    const STORAGE_KEY = 'todoapp_tasks_v148';
 
     function generateSafeId() {
       return Math.floor((Date.now() % 1000000000)) * 1000 + Math.floor(Math.random() * 1000);
@@ -454,7 +441,8 @@
     }
 
     let rawLocal = localStorage.getItem(STORAGE_KEY) || 
-                   localStorage.getItem('todoapp_tasks_v145') || '[]';
+                   localStorage.getItem('todoapp_tasks_v147') || 
+                   localStorage.getItem('todoapp_tasks_v146') || '[]';
     
     let todos = sanitizeTodosList(JSON.parse(rawLocal));
 
@@ -971,7 +959,7 @@
 
     document.addEventListener('mousedown', (e) => {
       const suggestionsList = document.getElementById('task-link-suggestions');
-      if (!suggestionsList.contains(e.target)) suggestionsList.classList.add('hidden');
+      if (suggestionsList && !suggestionsList.contains(e.target)) suggestionsList.classList.add('hidden');
     });
 
     async function saveModal() {
@@ -1124,7 +1112,6 @@
       return hasAncestor(child.parent_id, possibleAncestorId);
     }
 
-    // 6. Encadrement par État : Détermination stricte du statut (Complet 100%, Entamé, Incomplet)
     function getTaskState(taskId) {
       const task = todos.find(t => t.id === taskId);
       if (!task) return 'red';
@@ -1161,7 +1148,7 @@
         const isChecked = task.completed ? 'checked' : '';
         
         return `<span class="inline-flex items-center gap-1.5 mx-1 ${colorClass} font-bold px-1.5 py-0.5 bg-slate-100/60 rounded align-middle border border-slate-200/50">
-                  <input type="checkbox" ${isChecked} onclick="toggleTask(event, ${id})" class="w-3.5 h-3.5 ${accentColor} rounded cursor-pointer shrink-0 mt-[1px]">
+                  <input type="checkbox" ${isChecked} onclick="toggleTask(event, ${id})" class="w-4 h-4 ${accentColor} rounded cursor-pointer shrink-0 mt-[1px]">
                   <span class="cursor-pointer hover:underline truncate max-w-[150px]" onclick="scrollToTask(event, ${id})">🔗 ${escapeHtml(task.text)}</span>
                 </span>`;
       });
@@ -1210,70 +1197,69 @@
         const isCollapsed = !!todo.collapsed;
         const childrenHTML = (!isCollapsed && hasChildren) ? renderTaskTree(todo.id, level + 1) : '';
 
-        // 6. Encadrement par État : Application de la classe de bordure (2px) selon l'état
         const state = getTaskState(todo.id);
         let borderStateClass = 'status-border-red';
         if (state === 'green') borderStateClass = 'status-border-green';
         else if (state === 'orange') borderStateClass = 'status-border-orange';
 
-        let prioBorder = '';
-        if (todo.priority === 1) prioBorder = 'border-l-4 border-l-slate-400';
-        else if (todo.priority === 2) prioBorder = 'border-l-4 border-l-blue-500';
-        else if (todo.priority === 3) prioBorder = 'border-l-4 border-l-orange-500';
-        else if (todo.priority === 4) prioBorder = 'border-l-4 border-l-red-500';
+        let prioClass = '';
+        if (todo.priority === 1) prioClass = 'prio-1';
+        else if (todo.priority === 2) prioClass = 'prio-2';
+        else if (todo.priority === 3) prioClass = 'prio-3';
+        else if (todo.priority === 4) prioClass = 'prio-4';
 
-        // 3. Contrôles Élargis : Flèche agrandie avec large zone de clic (p-2, text-xl)
+        // Flèches ÉNORMES (w-8 h-8)
         const arrowSvg = isCollapsed 
-          ? `<svg class="w-5 h-5 text-slate-500 fill-current" viewBox="0 0 20 20"><path d="M6 4l10 6-10 6V4z"/></svg>`
-          : `<svg class="w-5 h-5 text-slate-500 fill-current" viewBox="0 0 20 20"><path d="M4 6l6 10 6-10H4z"/></svg>`;
+          ? `<svg class="w-8 h-8 text-slate-500 fill-current" viewBox="0 0 20 20"><path d="M6 4l10 6-10 6V4z"/></svg>`
+          : `<svg class="w-8 h-8 text-slate-500 fill-current" viewBox="0 0 20 20"><path d="M4 6l6 10 6-10H4z"/></svg>`;
 
         return `
           <div class="task-item-wrapper flex items-start gap-1 transition-all rounded-2xl ${level > 0 ? 'ml-4 mt-1.5 pl-1 border-l-2 border-slate-200/70' : ''}"
                ondragover="handleDragOver(event)" ondrop="handleDrop(event, ${todo.id})" ondragenter="handleDragEnter(event)" ondragleave="handleDragLeave(event)">
             
             <div draggable="true" ondragstart="handleDragStart(event, ${todo.id})" class="cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-500 mt-[14px] px-1 drag-handle shrink-0" title="Déplacer (Drag & Drop)">
-              <svg class="w-4 h-4 fill-current" viewBox="0 0 20 20"><path d="M7 2a2 2 0 10-4 0 2 2 0 004 0zm0 8a2 2 0 10-4 0 2 2 0 004 0zm0 8a2 2 0 10-4 0 2 2 0 004 0zm8-16a2 2 0 10-4 0 2 2 0 004 0zm0 8a2 2 0 10-4 0 2 2 0 004 0zm0 8a2 2 0 10-4 0 2 2 0 004 0z"/></svg>
+              <svg class="w-5 h-5 fill-current" viewBox="0 0 20 20"><path d="M7 2a2 2 0 10-4 0 2 2 0 004 0zm0 8a2 2 0 10-4 0 2 2 0 004 0zm0 8a2 2 0 10-4 0 2 2 0 004 0zm8-16a2 2 0 10-4 0 2 2 0 004 0zm0 8a2 2 0 10-4 0 2 2 0 004 0zm0 8a2 2 0 10-4 0 2 2 0 004 0z"/></svg>
             </div>
 
             <div class="flex-1 w-full min-w-0">
               <div id="task-card-${todo.id}"
                 onclick="openModal(${todo.id})"
-                class="task-card-bg flex items-start justify-between gap-2.5 p-2.5 rounded-2xl border-2 transition-all cursor-pointer ${borderStateClass} ${
+                class="task-card-bg flex items-start justify-between gap-3 p-3 rounded-2xl transition-all cursor-pointer ${borderStateClass} ${prioClass} ${
                   todo.completed ? 'bg-slate-50 opacity-60' : 
                   isGriser ? 'bg-slate-100/70 opacity-50' : 
                   'bg-white shadow-sm hover:border-slate-400'
-                } ${prioBorder}"
+                }"
               >
-                <!-- 3. Contrôles Élargis : Case à cocher agrandie (w-7 h-7) -->
+                <!-- Checkbox massive -->
                 <input 
                   type="checkbox" 
                   ${todo.completed ? 'checked' : ''} 
-                  class="w-7 h-7 accent-slate-900 rounded cursor-pointer mt-0.5 shrink-0"
+                  class="w-8 h-8 accent-slate-900 rounded cursor-pointer shrink-0 mt-0.5"
                   onclick="toggleTask(event, ${todo.id})"
                 >
 
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-2 flex-wrap">
-                    <span class="text-sm font-semibold leading-relaxed ${todo.completed ? 'line-through text-slate-400' : 'text-slate-800'}">
+                    <span class="text-base font-semibold leading-relaxed ${todo.completed ? 'line-through text-slate-400' : 'text-slate-800'}">
                       ${formatTextWithLinks(todo.text)}
                     </span>
                     ${todo.paused ? `<span class="text-[10px] font-bold px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-md">PAUSE</span>` : ''}
                     ${hasChildren && isCollapsed ? `<span class="text-[10px] font-bold px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded-md">+${children.length} masquée${children.length > 1 ? 's' : ''}</span>` : ''}
                   </div>
 
-                  <div class="flex flex-wrap gap-1 mt-1">
-                    <span class="text-[10px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md">${escapeHtml(todo.category)}</span>
-                    ${(todo.tags || []).map(tag => `<span class="text-[10px] font-bold bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-md">#${escapeHtml(tag)}</span>`).join('')}
+                  <div class="flex flex-wrap gap-1.5 mt-1.5">
+                    <span class="text-xs font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md">${escapeHtml(todo.category)}</span>
+                    ${(todo.tags || []).map(tag => `<span class="text-xs font-bold bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-md">#${escapeHtml(tag)}</span>`).join('')}
                   </div>
 
-                  ${todo.notes ? `<p class="text-xs text-slate-500 mt-1.5 italic bg-slate-50 p-2 rounded-xl border border-slate-100 leading-relaxed">${formatTextWithLinks(todo.notes)}</p>` : ''}
+                  ${todo.notes ? `<p class="text-sm text-slate-500 mt-2 italic bg-slate-50 p-2.5 rounded-xl border border-slate-100 leading-relaxed">${formatTextWithLinks(todo.notes)}</p>` : ''}
                 </div>
 
-                <!-- 3. Contrôles Élargis : Boutons pliage, ajout et suppression agrandis (p-2, text-xl) -->
-                <div class="flex items-center gap-0.5 shrink-0">
+                <!-- Boutons XXL (p-3, text-3xl) -->
+                <div class="flex items-center gap-1 shrink-0">
                   ${hasChildren ? `<button onclick="toggleCollapse(event, ${todo.id})" class="p-2 text-slate-400 hover:text-slate-900 rounded-lg shrink-0" title="${isCollapsed ? 'Déplier' : 'Plier'}">${arrowSvg}</button>` : ''}
-                  <button onclick="addSubtask(event, ${todo.id})" class="p-2 text-slate-400 hover:text-slate-900 font-bold text-xl rounded-lg leading-none" title="Sous-tâche">+</button>
-                  <button onclick="deleteTask(event, ${todo.id})" class="p-2 text-slate-400 hover:text-rose-500 font-bold text-xl rounded-lg leading-none" title="Supprimer">&times;</button>
+                  <button onclick="addSubtask(event, ${todo.id})" class="px-3 py-2 text-slate-400 hover:text-slate-900 font-bold text-3xl rounded-lg leading-none" title="Sous-tâche">+</button>
+                  <button onclick="deleteTask(event, ${todo.id})" class="px-3 py-2 text-slate-400 hover:text-rose-500 font-bold text-3xl rounded-lg leading-none" title="Supprimer">&times;</button>
                 </div>
               </div>
               ${childrenHTML}
@@ -1295,8 +1281,8 @@
 
     updateCategories(); initRealtime(); syncCloud(); 
     
-    // 1. Zoom initialisé par défaut à 0.8 (80%)
-    applyZoom(0.8); 
+    // Zoom d'origine (1.0 = 100%) réappliqué au chargement pour rétablir la taille
+    applyZoom(1.0); 
   </script>
 </body>
 </html>
