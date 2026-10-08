@@ -1,10 +1,10 @@
-<!-- TODOAPP - Version 1.5.2 -->
+<!-- TODOAPP - Version 1.5.3 -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>TODOAPP - v1.5.2</title>
+  <title>TODOAPP - v1.5.3</title>
   
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -134,7 +134,7 @@
           <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <h1 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">TODOAPP</h1>
             <span id="sync-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0"></span>
-            <span class="text-xs text-slate-500 font-bold inline-block">v1.5.2</span>
+            <span class="text-xs text-slate-500 font-bold inline-block">v1.5.3</span>
           </div>
 
           <div class="flex items-center gap-1 shrink-0">
@@ -158,9 +158,12 @@
 
         <div class="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none" id="category-tabs"></div>
         
-        <div class="relative w-full h-1.5 bg-slate-100 mt-1 mb-3 rounded-full flex items-center">
-            <div id="global-progress-bar" class="h-full rounded-full transition-all duration-300" style="width: 0%; background-color: hsl(0, 100%, 45%);"></div>
-            <div id="global-progress-text" class="absolute right-0 -top-4 text-[10px] font-extrabold" style="color: hsl(0, 100%, 45%);">0%</div>
+        <!-- Barre de progression côte-à-côte avec pourcentage -->
+        <div class="flex items-center gap-2 mt-1 mb-3">
+            <div class="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden flex items-center">
+                <div id="global-progress-bar" class="h-full rounded-full transition-all duration-300" style="width: 0%; background-color: hsl(0, 100%, 45%);"></div>
+            </div>
+            <span id="global-progress-text" class="text-[10px] font-extrabold shrink-0 w-8 text-right" style="color: hsl(0, 100%, 45%);">0%</span>
         </div>
 
       </header>
@@ -262,10 +265,25 @@
           <option value="prio-asc">Priorité basse d'abord</option>
         </select>
       </div>
+
+      <!-- Import / Export JSON -->
+      <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+        <div class="text-xs font-bold text-slate-800 uppercase">Sauvegarde & Restauration</div>
+        <div class="flex gap-2">
+          <button onclick="exportJSON()" class="flex-1 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-colors shadow-sm flex items-center justify-center gap-1.5">
+            <span>📥</span> Export JSON
+          </button>
+          <label class="flex-1 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl text-xs font-bold text-center cursor-pointer transition-colors flex items-center justify-center gap-1.5">
+            <span>📤</span> Import JSON
+            <input type="file" id="import-json-input" accept=".json" onchange="importJSON(event)" class="hidden">
+          </label>
+        </div>
+      </div>
+
       <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-200">
         <div>
           <div class="text-xs font-bold text-slate-800">Version de l'application</div>
-          <div class="text-[11px] text-slate-500">v1.5.2 (Cache: todoapp_v152)</div>
+          <div class="text-[11px] text-slate-500">v1.5.3 (Cache: todoapp_v153)</div>
         </div>
         <button onclick="forceAppUpdate()" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800">Forcer MaJ</button>
       </div>
@@ -273,7 +291,7 @@
   </div>
 
   <script>
-    const CACHE_NAME = 'todoapp_v152';
+    const CACHE_NAME = 'todoapp_v153';
 
     if ('serviceWorker' in navigator) {
       const swCode = `
@@ -422,7 +440,7 @@
       }
     }
 
-    const STORAGE_KEY = 'todoapp_tasks_v152';
+    const STORAGE_KEY = 'todoapp_tasks_v153';
 
     function generateSafeId() {
       return Math.floor((Date.now() % 1000000000)) * 1000 + Math.floor(Math.random() * 1000);
@@ -447,6 +465,7 @@
     }
 
     let rawLocal = localStorage.getItem(STORAGE_KEY) || 
+                   localStorage.getItem('todoapp_tasks_v152') || 
                    localStorage.getItem('todoapp_tasks_v151') || 
                    localStorage.getItem('todoapp_tasks_v150') || '[]';
     
@@ -455,7 +474,7 @@
     const BASE_CATEGORIES = ["Général", "Maison", "Jardin", "Voiture", "Aster", "Aimé"];
     let categories = [];
     let activeCategory = "Tout";
-    let activeSearchTags = []; // Gestion des tags de recherche en temps réel
+    let activeSearchTags = [];
 
     function updateCategories() {
       const localCustomCats = JSON.parse(localStorage.getItem('todoapp_custom_cats') || '[]');
@@ -488,6 +507,48 @@
       localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
       updateCategories();
       render();
+    }
+
+    function exportJSON() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(todos, null, 2));
+      const downloadAnchor = document.createElement('a');
+      const dateStr = new Date().toISOString().slice(0, 10);
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `todoapp_export_${dateStr}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    async function importJSON(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        try {
+          const importedData = JSON.parse(event.target.result);
+          if (!Array.isArray(importedData)) {
+            alert("Le fichier JSON doit contenir une liste de tâches valide.");
+            return;
+          }
+          if (confirm(`Voulez-vous importer et remplacer vos tâches par les ${importedData.length} tâches du fichier ?`)) {
+            todos = sanitizeTodosList(importedData);
+            saveLocal();
+            if (supabaseClient) {
+              for (const t of todos) {
+                await pushTaskToCloud(t);
+              }
+            }
+            await syncCloud();
+            alert("Importation réussie !");
+          }
+        } catch (err) {
+          alert("Erreur lors de l'importation du fichier JSON : " + err.message);
+        }
+      };
+      reader.readAsText(file);
+      e.target.value = '';
     }
 
     function updateSyncStatus(online, msg) {
@@ -886,7 +947,6 @@
       return Array.from(tagsSet);
     }
 
-    /* === GESTION DE LA RECHERCHE ET AUTOCOMPLÉTION === */
     function handleSearchInput(e) {
       const val = e.target.value;
       const parts = val.split(',').map(p => p.trim());
@@ -1272,14 +1332,31 @@
     }
 
     function updateGlobalProgress() {
-      if (todos.length === 0) return;
-      const completedCount = todos.filter(t => t.completed).length;
-      const percent = Math.round((completedCount / todos.length) * 100);
-      const hue = percent * 1.2; 
-      const color = `hsl(${hue}, 100%, 45%)`;
-      
+      let targetTasks = [];
+      if (activeCategory === 'Tout') {
+        targetTasks = todos;
+      } else if (activeCategory === 'Masquées') {
+        targetTasks = todos.filter(t => t.paused && t.pauseMode === 'masquer');
+      } else {
+        targetTasks = todos.filter(t => t.category === activeCategory || hasAncestorWithCategory(t.parent_id, activeCategory));
+      }
+
       const bar = document.getElementById('global-progress-bar');
       const text = document.getElementById('global-progress-text');
+
+      if (targetTasks.length === 0) {
+        if (bar) bar.style.width = '0%';
+        if (text) {
+          text.textContent = '0%';
+          text.style.color = 'hsl(0, 100%, 45%)';
+        }
+        return;
+      }
+
+      const completedCount = targetTasks.filter(t => t.completed).length;
+      const percent = Math.round((completedCount / targetTasks.length) * 100);
+      const hue = percent * 1.2; 
+      const color = `hsl(${hue}, 100%, 45%)`;
       
       if (bar) {
         bar.style.width = percent + '%';
@@ -1291,7 +1368,14 @@
       }
     }
 
-    /* === FONCTIONS DE LOGIQUE DE FILTRAGE PAR TAGS === */
+    function getBacklinks(taskId) {
+      const targetPattern = `[[${taskId}]]`;
+      return todos.filter(t => 
+        t.id !== taskId && 
+        ((t.text && t.text.includes(targetPattern)) || (t.notes && t.notes.includes(targetPattern)))
+      );
+    }
+
     function taskMatchesTags(task) {
       if (!activeSearchTags || activeSearchTags.length === 0) return true;
       return activeSearchTags.every(searchTag => 
@@ -1328,12 +1412,10 @@
             } else { if (t.parent_id !== parentId) return false; }
         }
 
-        // Application du filtre de recherche (Si renseigné)
         if (activeSearchTags.length > 0) {
           const selfMatch = taskMatchesTags(t);
           const childMatch = hasMatchingDescendantTags(t.id);
           const parentMatch = hasMatchingAncestorTags(t.id);
-          // On affiche si la tâche matche, ou a un parent qui matche, ou a un enfant qui matche
           if (!selfMatch && !childMatch && !parentMatch) return false;
         }
 
@@ -1348,7 +1430,6 @@
         const children = todos.filter(c => c.parent_id === todo.id);
         const hasChildren = children.length > 0;
         
-        // Dépliage automatique forcé si on filtre et qu'un descendant matche
         const forceUncollapse = activeSearchTags.length > 0 && hasMatchingDescendantTags(todo.id);
         const isCollapsed = forceUncollapse ? false : !!todo.collapsed;
         
@@ -1391,6 +1472,21 @@
           }
         }
 
+        const backlinks = getBacklinks(todo.id);
+        let backlinksHtml = '';
+        if (backlinks.length > 0) {
+          backlinksHtml = `
+            <div class="mt-1.5 flex flex-wrap gap-1 items-center text-[10px] text-slate-500 font-medium">
+              <span class="text-slate-400 font-bold">↩ Cité dans :</span>
+              ${backlinks.map(b => `
+                <button onclick="scrollToTask(event, ${b.id})" class="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded transition-colors truncate max-w-[150px]" title="${escapeHtml(b.text)}">
+                  🔗 ${escapeHtml(b.text)}
+                </button>
+              `).join('')}
+            </div>
+          `;
+        }
+
         return `
           <div class="task-item-wrapper flex items-start gap-1 transition-all rounded-2xl ${level > 0 ? 'ml-3 mt-1 pl-1 border-l-2 border-slate-200/70' : ''}"
                ondragover="handleDragOver(event)" ondrop="handleDrop(event, ${todo.id})" ondragenter="handleDragEnter(event)" ondragueleave="handleDragLeave(event)">
@@ -1431,6 +1527,8 @@
 
                   ${todo.notes ? `<p class="text-xs text-slate-500 mt-1.5 italic bg-slate-50 p-2 rounded-xl border border-slate-100 leading-relaxed">${formatTextWithLinks(todo.notes)}</p>` : ''}
                   
+                  ${backlinksHtml}
+
                   ${subtaskProgressHtml}
                 </div>
 
