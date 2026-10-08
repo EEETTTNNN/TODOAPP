@@ -1,10 +1,10 @@
-<!-- TODOAPP - Version 1.5.1 -->
+<!-- TODOAPP - Version 1.5.2 -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>TODOAPP - v1.5.1</title>
+  <title>TODOAPP - v1.5.2</title>
   
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -122,7 +122,6 @@
     <button onclick="document.getElementById('debug-banner').classList.add('hidden')" class="bg-rose-800 px-2 py-0.5 rounded text-[10px]">✕</button>
   </div>
 
-  <!-- Conteneur Splash Screen avec contournement manuel au clic/tap -->
   <div id="splash-screen" onclick="hideSplashScreen()" class="fixed inset-0 z-[100] bg-slate-900 flex items-center justify-center cursor-pointer">
     <img src="splashlogo.jpg" alt="Splash Screen" class="w-full h-full object-cover" onerror="hideSplashScreen()">
   </div>
@@ -135,7 +134,7 @@
           <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <h1 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">TODOAPP</h1>
             <span id="sync-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0"></span>
-            <span class="text-xs text-slate-500 font-bold inline-block">v1.5.1</span>
+            <span class="text-xs text-slate-500 font-bold inline-block">v1.5.2</span>
           </div>
 
           <div class="flex items-center gap-1 shrink-0">
@@ -166,10 +165,21 @@
 
       </header>
 
-      <form onsubmit="addTask(event)" class="flex gap-1.5 mb-2 shrink-0 relative">
-        <input type="text" id="task-input" placeholder="Ajouter une tâche... (utilisez $ pour lier)" oninput="handleTaskLinkAutocomplete(event)" class="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-900" required>
-        <button type="submit" class="bg-slate-900 text-white rounded-xl px-4 py-1.5 font-bold text-lg hover:bg-slate-800">+</button>
-      </form>
+      <!-- SEPARATION EN DEUX COLONNES -->
+      <div class="flex gap-2 mb-2 shrink-0 w-full max-w-full">
+        <!-- Partie Gauche : Ajout de tâche -->
+        <form onsubmit="addTask(event)" class="flex gap-1 flex-1 min-w-0 relative">
+          <input type="text" id="task-input" placeholder="Ajouter... ($ pour lien)" oninput="handleTaskLinkAutocomplete(event)" class="w-full min-w-0 bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-900" required>
+          <button type="submit" class="bg-slate-900 text-white rounded-xl px-3 py-1.5 font-bold text-lg hover:bg-slate-800 shrink-0">+</button>
+        </form>
+
+        <!-- Partie Droite : Recherche par tags -->
+        <div class="flex-1 min-w-0 relative flex items-center">
+          <span class="absolute left-2.5 text-slate-400 text-sm pointer-events-none">🔍</span>
+          <input type="text" id="search-tags-input" placeholder="Tags (lieu, nom)..." oninput="handleSearchInput(event)" class="w-full min-w-0 bg-slate-50 border border-slate-300 rounded-xl pl-7 pr-2.5 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-900">
+          <ul id="search-tag-suggestions" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-[200] max-h-40 overflow-y-auto text-sm"></ul>
+        </div>
+      </div>
 
       <div id="viewport">
         <div id="zoom-container">
@@ -185,7 +195,7 @@
   </div>
 
   <!-- MODALE ÉDITION -->
-  <div id="edit-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center p-4 z-50" onclick="closeModalOnOut(event)" onkeydown="handleModalKeyDown(event)">
+  <div id="edit-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center p-4 z-[250]" onclick="closeModalOnOut(event)" onkeydown="handleModalKeyDown(event)">
     <div class="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto space-y-5" onclick="event.stopPropagation()">
       <div class="flex justify-between items-center border-b pb-3 border-slate-100">
         <h3 class="font-extrabold text-lg text-slate-900" id="modal-heading">Éditer la tâche</h3>
@@ -212,7 +222,7 @@
       <div class="relative">
         <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Tags (séparés par virgules)</label>
         <input type="text" id="modal-tags" placeholder="ex: maison, urgent..." oninput="handleTagAutocomplete(event)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900">
-        <ul id="tag-suggestions" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-20 max-h-32 overflow-y-auto"></ul>
+        <ul id="tag-suggestions" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-[260] max-h-32 overflow-y-auto"></ul>
       </div>
       <div class="relative">
         <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Notes</label>
@@ -236,7 +246,7 @@
   </div>
 
   <!-- MODALE RÉGLAGES -->
-  <div id="settings-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center p-4 z-50" onclick="closeSettingsModalOnOut(event)">
+  <div id="settings-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center p-4 z-[250]" onclick="closeSettingsModalOnOut(event)">
     <div class="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl border border-slate-100 space-y-5" onclick="event.stopPropagation()">
       <div class="flex justify-between items-center border-b pb-3 border-slate-100">
         <h3 class="font-extrabold text-lg text-slate-900">Réglages</h3>
@@ -255,7 +265,7 @@
       <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-200">
         <div>
           <div class="text-xs font-bold text-slate-800">Version de l'application</div>
-          <div class="text-[11px] text-slate-500">v1.5.1 (Cache: todoapp_v151)</div>
+          <div class="text-[11px] text-slate-500">v1.5.2 (Cache: todoapp_v152)</div>
         </div>
         <button onclick="forceAppUpdate()" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800">Forcer MaJ</button>
       </div>
@@ -263,7 +273,7 @@
   </div>
 
   <script>
-    const CACHE_NAME = 'todoapp_v151';
+    const CACHE_NAME = 'todoapp_v152';
 
     if ('serviceWorker' in navigator) {
       const swCode = `
@@ -294,7 +304,6 @@
         setTimeout(() => splash.style.display = 'none', 450);
       }
     }
-    // Secours de temporisation maximal : 1s
     setTimeout(hideSplashScreen, 1000);
 
     function toggleZoomBar() {
@@ -404,7 +413,6 @@
     const SUPABASE_URL = "https://bwirwhcetlfwzqswbfwr.supabase.co";
     const SUPABASE_KEY = "sb_publishable_6f1T8ttm3Lc0yTSqsHUikA_XW5eo3X7";
     
-    // Instanciation sécurisée de Supabase
     let supabaseClient = null;
     if (typeof supabase !== 'undefined' && supabase.createClient) {
       try {
@@ -414,7 +422,7 @@
       }
     }
 
-    const STORAGE_KEY = 'todoapp_tasks_v151';
+    const STORAGE_KEY = 'todoapp_tasks_v152';
 
     function generateSafeId() {
       return Math.floor((Date.now() % 1000000000)) * 1000 + Math.floor(Math.random() * 1000);
@@ -439,14 +447,15 @@
     }
 
     let rawLocal = localStorage.getItem(STORAGE_KEY) || 
-                   localStorage.getItem('todoapp_tasks_v150') || 
-                   localStorage.getItem('todoapp_tasks_v149') || '[]';
+                   localStorage.getItem('todoapp_tasks_v151') || 
+                   localStorage.getItem('todoapp_tasks_v150') || '[]';
     
     let todos = sanitizeTodosList(JSON.parse(rawLocal));
 
     const BASE_CATEGORIES = ["Général", "Maison", "Jardin", "Voiture", "Aster", "Aimé"];
     let categories = [];
     let activeCategory = "Tout";
+    let activeSearchTags = []; // Gestion des tags de recherche en temps réel
 
     function updateCategories() {
       const localCustomCats = JSON.parse(localStorage.getItem('todoapp_custom_cats') || '[]');
@@ -566,7 +575,6 @@
       }
 
       try {
-        // Timeout de sécurité 3s pour ne jamais bloquer le chargement
         const fetchPromise = supabaseClient.from('todos').select('*');
         const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout réseau")), 3000));
 
@@ -878,6 +886,53 @@
       return Array.from(tagsSet);
     }
 
+    /* === GESTION DE LA RECHERCHE ET AUTOCOMPLÉTION === */
+    function handleSearchInput(e) {
+      const val = e.target.value;
+      const parts = val.split(',').map(p => p.trim());
+      
+      activeSearchTags = parts.filter(p => p.length > 0);
+      render(); 
+      
+      const currentPart = parts[parts.length - 1].toLowerCase();
+      const suggestionsList = document.getElementById('search-tag-suggestions');
+      
+      if (!currentPart) {
+        suggestionsList.classList.add('hidden');
+        return;
+      }
+      
+      const allTags = getAllExistingTags();
+      const filtered = allTags.filter(t => 
+        t.toLowerCase().includes(currentPart) && 
+        !parts.slice(0, -1).map(p => p.toLowerCase()).includes(t.toLowerCase())
+      );
+      
+      if (filtered.length > 0) {
+        suggestionsList.innerHTML = filtered.map(tag => `
+          <li class="px-3 py-2 font-medium hover:bg-slate-100 cursor-pointer border-b border-slate-50 last:border-0 truncate" onmousedown="insertSearchTagSuggestion(event, '${escapeHtml(tag)}')">
+            #${escapeHtml(tag)}
+          </li>
+        `).join('');
+        suggestionsList.classList.remove('hidden');
+      } else {
+        suggestionsList.classList.add('hidden');
+      }
+    }
+
+    function insertSearchTagSuggestion(e, tag) {
+      if (e) e.preventDefault();
+      const input = document.getElementById('search-tags-input');
+      const parts = input.value.split(',');
+      parts[parts.length - 1] = ' ' + tag;
+      input.value = parts.join(', ') + ', ';
+      document.getElementById('search-tag-suggestions').classList.add('hidden');
+      
+      activeSearchTags = input.value.split(',').map(p => p.trim()).filter(p => p.length > 0);
+      render();
+      input.focus();
+    }
+
     function handleTagAutocomplete(e) {
       const val = e.target.value;
       const parts = val.split(',');
@@ -963,8 +1018,13 @@
     }
 
     document.addEventListener('mousedown', (e) => {
-      const suggestionsList = document.getElementById('task-link-suggestions');
-      if (suggestionsList && !suggestionsList.contains(e.target)) suggestionsList.classList.add('hidden');
+      const linkSuggestions = document.getElementById('task-link-suggestions');
+      if (linkSuggestions && !linkSuggestions.contains(e.target)) linkSuggestions.classList.add('hidden');
+      
+      const searchSuggestions = document.getElementById('search-tag-suggestions');
+      if (searchSuggestions && !searchSuggestions.contains(e.target) && e.target.id !== 'search-tags-input') {
+        searchSuggestions.classList.add('hidden');
+      }
     });
 
     async function saveModal() {
@@ -1231,15 +1291,52 @@
       }
     }
 
+    /* === FONCTIONS DE LOGIQUE DE FILTRAGE PAR TAGS === */
+    function taskMatchesTags(task) {
+      if (!activeSearchTags || activeSearchTags.length === 0) return true;
+      return activeSearchTags.every(searchTag => 
+        (task.tags || []).some(t => t.toLowerCase().includes(searchTag.toLowerCase()))
+      );
+    }
+
+    function hasMatchingDescendantTags(taskId) {
+      const children = todos.filter(c => c.parent_id === taskId);
+      if (children.length === 0) return false;
+      return children.some(c => taskMatchesTags(c) || hasMatchingDescendantTags(c.id));
+    }
+
+    function hasMatchingAncestorTags(taskId) {
+      const task = todos.find(t => t.id === taskId);
+      if (!task || !task.parent_id) return false;
+      const parent = todos.find(p => p.id === task.parent_id);
+      if (!parent) return false;
+      if (taskMatchesTags(parent)) return true;
+      return hasMatchingAncestorTags(parent.id);
+    }
+
     function renderTaskTree(parentId = null, level = 0) {
       let items = todos.filter(t => {
         const isMasquer = t.paused && t.pauseMode === 'masquer';
-        if (activeCategory === 'Masquées') return level === 0 ? (isMasquer && t.parent_id === null) : (t.parent_id === parentId);
-        if (isMasquer) return false;
-        if (level === 0) {
-          if (activeCategory === 'Tout') { if (t.parent_id !== null) return false; } 
-          else { if (t.category !== activeCategory) return false; if (hasAncestorWithCategory(t.parent_id, activeCategory)) return false; }
-        } else { if (t.parent_id !== parentId) return false; }
+        if (activeCategory === 'Masquées') {
+            if (level === 0 && !(isMasquer && t.parent_id === null)) return false;
+            if (level !== 0 && t.parent_id !== parentId) return false;
+        } else {
+            if (isMasquer) return false;
+            if (level === 0) {
+              if (activeCategory === 'Tout') { if (t.parent_id !== null) return false; } 
+              else { if (t.category !== activeCategory) return false; if (hasAncestorWithCategory(t.parent_id, activeCategory)) return false; }
+            } else { if (t.parent_id !== parentId) return false; }
+        }
+
+        // Application du filtre de recherche (Si renseigné)
+        if (activeSearchTags.length > 0) {
+          const selfMatch = taskMatchesTags(t);
+          const childMatch = hasMatchingDescendantTags(t.id);
+          const parentMatch = hasMatchingAncestorTags(t.id);
+          // On affiche si la tâche matche, ou a un parent qui matche, ou a un enfant qui matche
+          if (!selfMatch && !childMatch && !parentMatch) return false;
+        }
+
         return true;
       });
 
@@ -1250,7 +1347,11 @@
         const isGriser = todo.paused && todo.pauseMode !== 'masquer';
         const children = todos.filter(c => c.parent_id === todo.id);
         const hasChildren = children.length > 0;
-        const isCollapsed = !!todo.collapsed;
+        
+        // Dépliage automatique forcé si on filtre et qu'un descendant matche
+        const forceUncollapse = activeSearchTags.length > 0 && hasMatchingDescendantTags(todo.id);
+        const isCollapsed = forceUncollapse ? false : !!todo.collapsed;
+        
         const childrenHTML = (!isCollapsed && hasChildren) ? renderTaskTree(todo.id, level + 1) : '';
 
         const state = getTaskState(todo.id);
@@ -1350,7 +1451,7 @@
       const treeContainer = document.getElementById('task-tree');
       const countEl = document.getElementById('task-count');
       const html = renderTaskTree(null, 0);
-      if (!html) treeContainer.innerHTML = `<p class="text-center text-slate-400 text-sm py-8">Aucune tâche dans cette catégorie</p>`;
+      if (!html) treeContainer.innerHTML = `<p class="text-center text-slate-400 text-sm py-8">Aucune tâche dans cette catégorie ou correspondant à la recherche.</p>`;
       else treeContainer.innerHTML = html;
       const activeCount = todos.filter(t => !t.completed).length;
       countEl.textContent = `${activeCount} tâche${activeCount > 1 ? 's' : ''} restante${activeCount > 1 ? 's' : ''}`;
@@ -1358,9 +1459,8 @@
       updateGlobalProgress();
     }
 
-    // Séquence d'initialisation sécurisée
     updateCategories(); 
-    render(); // Affichage local immédiat !
+    render(); 
     initRealtime(); 
     syncCloud(); 
     applyZoom(1.0); 
