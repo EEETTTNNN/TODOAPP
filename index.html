@@ -1046,7 +1046,7 @@ html_content = """<!-- TODOAPP - Version 1.5.4 -->
       const val = input.value;
       const cursorPos = input.selectionStart || 0;
       const textBeforeCursor = val.substring(0, cursorPos);
-      const match = textBeforeCursor.match(/\$([^\s$]*)$/);
+      const match = textBeforeCursor.match(/\\$([^\\s$]*)$/);
       
       const suggestionsList = document.getElementById('task-link-suggestions');
       
@@ -1087,7 +1087,7 @@ html_content = """<!-- TODOAPP - Version 1.5.4 -->
       const textBeforeCursor = val.substring(0, cursorPos);
       const textAfterCursor = val.substring(cursorPos);
       
-      const match = textBeforeCursor.match(/\$([^\s$]*)$/);
+      const match = textBeforeCursor.match(/\\$([^\\s$]*)$/);
       if (match) {
         const startIdx = match.index;
         const newTextBefore = textBeforeCursor.substring(0, startIdx) + `[[${taskId}]] `;
@@ -1190,7 +1190,7 @@ html_content = """<!-- TODOAPP - Version 1.5.4 -->
     }
 
     async function deleteCategory(cat) {
-      if (confirm(\`Supprimer la catégorie "\${cat}" ? Les tâches associées seront déplacées vers "Général".\`)) {
+      if (confirm(`Supprimer la catégorie "${cat}" ? Les tâches associées seront déplacées vers "Général".`)) {
         let custom = JSON.parse(localStorage.getItem('todoapp_custom_cats') || '[]');
         custom = custom.filter(c => c !== cat);
         localStorage.setItem('todoapp_custom_cats', JSON.stringify(custom));
@@ -1353,7 +1353,7 @@ html_content = """<!-- TODOAPP - Version 1.5.4 -->
     function formatTextWithLinks(text) {
       if (!text) return '';
       let escaped = escapeHtml(text);
-      return escaped.replace(/\[\[(\d+)\]\]/g, (match, idStr) => {
+      return escaped.replace(/\\[\\[(\\d+)\\]\\]/g, (match, idStr) => {
         const id = Number(idStr);
         const task = todos.find(t => t.id === id);
         if (!task) return `<span class="line-through text-slate-400">Tâche introuvable</span>`;
@@ -1573,12 +1573,12 @@ html_content = """<!-- TODOAPP - Version 1.5.4 -->
             <div class="mt-1.5 flex flex-wrap gap-1 items-center text-[10px] text-slate-500 font-medium">
               <span class="text-slate-400 font-bold">↩ Cité dans :</span>
               ${backlinks.map(b => {
-                let cleanText = b.text.replace(/\[\[(\d+)\]\]/g, (match, idStr) => {
+                let cleanText = b.text.replace(/\\[\\[(\\d+)\\]\\]/g, (match, idStr) => {
                   const t = todos.find(task => task.id === Number(idStr));
-                  return t ? t.text.replace(/\[\[\d+\]\]/g, '').trim() : 'Tâche';
+                  return t ? t.text.replace(/\\[\\[\\d+\\]\\]/g, '').trim() : 'Tâche';
                 });
-                return `<button onclick="scrollToTask(event, ${b.id})" class="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded transition-colors truncate max-w-[150px]" title="\${escapeHtml(cleanText)}">
-                  🔗 \${escapeHtml(cleanText)}
+                return `<button onclick="scrollToTask(event, ${b.id})" class="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded transition-colors truncate max-w-[150px]" title="${escapeHtml(cleanText)}">
+                  🔗 ${escapeHtml(cleanText)}
                 </button>`;
               }).join('')}
             </div>
@@ -1615,7 +1615,7 @@ html_content = """<!-- TODOAPP - Version 1.5.4 -->
                       ${formatTextWithLinks(todo.text)}
                     </span>
                     ${todo.paused ? `<span class="text-[10px] font-bold px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-md">PAUSE</span>` : ''}
-                    ${hasChildren && isCollapsed ? `<span class="text-[10px] font-bold px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded-md">+\${children.length} masquée\${children.length > 1 ? 's' : ''}</span>` : ''}
+                    ${hasChildren && isCollapsed ? `<span class="text-[10px] font-bold px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded-md">+${children.length} masquée${children.length > 1 ? 's' : ''}</span>` : ''}
                   </div>
 
                   <div class="flex flex-wrap gap-1.5 mt-1">
@@ -1650,7 +1650,7 @@ html_content = """<!-- TODOAPP - Version 1.5.4 -->
       if (!html) treeContainer.innerHTML = `<p class="text-center text-slate-400 text-sm py-8">Aucune tâche dans cette catégorie ou correspondant à la recherche.</p>`;
       else treeContainer.innerHTML = html;
       const activeCount = todos.filter(t => !t.completed).length;
-      countEl.textContent = `\${activeCount} tâche\${activeCount > 1 ? 's' : ''} restante\${activeCount > 1 ? 's' : ''}`;
+      countEl.textContent = `${activeCount} tâche${activeCount > 1 ? 's' : ''} restante${activeCount > 1 ? 's' : ''}`;
       
       updateGlobalProgress();
     }
@@ -1664,6 +1664,7 @@ html_content = """<!-- TODOAPP - Version 1.5.4 -->
 </body>
 </html>"""
 
-with open('todoapp_v1.5.4.html', 'w', encoding='utf-8') as f:
+with open('todoapp_v1.5.4_clean.html', 'w', encoding='utf-8') as f:
     f.write(html_content)
-print("File generated successfully: todoapp_v1.5.4.html")
+
+print("File generated successfully: todoapp_v1.5.4_clean.html")
