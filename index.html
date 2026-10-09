@@ -1,10 +1,10 @@
-<!-- TODOAPP - Version 1.5.3 -->
+html_content = """<!-- TODOAPP - Version 1.5.4 -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>TODOAPP - v1.5.3</title>
+  <title>TODOAPP - v1.5.4</title>
   
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -134,7 +134,7 @@
           <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <h1 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">TODOAPP</h1>
             <span id="sync-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0"></span>
-            <span class="text-xs text-slate-500 font-bold inline-block">v1.5.3</span>
+            <span class="text-xs text-slate-500 font-bold inline-block">v1.5.4</span>
           </div>
 
           <div class="flex items-center gap-1 shrink-0">
@@ -168,18 +168,22 @@
 
       </header>
 
-      <!-- SEPARATION EN DEUX COLONNES -->
-      <div class="flex gap-2 mb-2 shrink-0 w-full max-w-full">
+      <!-- SEPARATION EN TROIS BLOCS -->
+      <div class="flex gap-2 mb-2 shrink-0 w-full items-stretch h-10">
         <!-- Partie Gauche : Ajout de tâche -->
-        <form onsubmit="addTask(event)" class="flex gap-1 flex-1 min-w-0 relative">
-          <input type="text" id="task-input" placeholder="Ajouter... ($ pour lien)" oninput="handleTaskLinkAutocomplete(event)" class="w-full min-w-0 bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-900" required>
-          <button type="submit" class="bg-slate-900 text-white rounded-xl px-3 py-1.5 font-bold text-lg hover:bg-slate-800 shrink-0">+</button>
+        <form id="add-task-form" onsubmit="addTask(event)" class="flex-1 min-w-0 relative">
+          <input type="text" id="task-input" placeholder="Ajouter... ($ pour lien)" oninput="handleTaskLinkAutocomplete(event)" class="w-full h-full bg-slate-50 border border-slate-300 rounded-xl px-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-900" required>
         </form>
 
+        <!-- Bouton central -->
+        <button type="submit" form="add-task-form" class="w-10 h-full bg-slate-900 text-white rounded-xl font-bold text-xl hover:bg-slate-800 shrink-0 flex items-center justify-center shadow-md pb-0.5">
+          +
+        </button>
+
         <!-- Partie Droite : Recherche par tags -->
-        <div class="flex-1 min-w-0 relative flex items-center">
-          <span class="absolute left-2.5 text-slate-400 text-sm pointer-events-none">🔍</span>
-          <input type="text" id="search-tags-input" placeholder="Tags (lieu, nom)..." oninput="handleSearchInput(event)" class="w-full min-w-0 bg-slate-50 border border-slate-300 rounded-xl pl-7 pr-2.5 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-900">
+        <div class="flex-1 min-w-0 relative">
+          <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none">🔍</span>
+          <input type="text" id="search-tags-input" placeholder="Tags (lieu, nom)..." oninput="handleSearchInput(event)" class="w-full h-full bg-slate-50 border border-slate-300 rounded-xl pl-8 pr-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-900">
           <ul id="search-tag-suggestions" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-[200] max-h-40 overflow-y-auto text-sm"></ul>
         </div>
       </div>
@@ -199,7 +203,7 @@
 
   <!-- MODALE ÉDITION -->
   <div id="edit-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center p-4 z-[250]" onclick="closeModalOnOut(event)" onkeydown="handleModalKeyDown(event)">
-    <div class="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto space-y-5" onclick="event.stopPropagation()">
+    <div class="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto space-y-4" onclick="event.stopPropagation()">
       <div class="flex justify-between items-center border-b pb-3 border-slate-100">
         <h3 class="font-extrabold text-lg text-slate-900" id="modal-heading">Éditer la tâche</h3>
         <button onclick="closeModal()" class="text-slate-400 hover:text-slate-700 text-3xl font-bold">&times;</button>
@@ -210,7 +214,7 @@
       </div>
       <div>
         <label class="block text-xs font-bold text-slate-500 uppercase mb-1.5">Catégorie</label>
-        <div class="flex flex-wrap gap-2 items-center" id="modal-categories-container"></div>
+        <div class="grid grid-rows-2 grid-flow-col auto-cols-max gap-2 overflow-x-auto pb-1 scrollbar-none" id="modal-categories-container"></div>
       </div>
       <div>
         <label class="block text-xs font-bold text-slate-500 uppercase mb-1.5">Priorité</label>
@@ -283,15 +287,29 @@
       <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-200">
         <div>
           <div class="text-xs font-bold text-slate-800">Version de l'application</div>
-          <div class="text-[11px] text-slate-500">v1.5.3 (Cache: todoapp_v153)</div>
+          <div class="text-[11px] text-slate-500">v1.5.4 (Cache: todoapp_v154)</div>
         </div>
         <button onclick="forceAppUpdate()" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800">Forcer MaJ</button>
       </div>
     </div>
   </div>
 
+  <!-- MODALE GESTION CATÉGORIES -->
+  <div id="category-manager-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center p-4 z-[260]" onclick="closeCategoryManagerOnOut(event)">
+    <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl border border-slate-100" onclick="event.stopPropagation()">
+      <div class="flex justify-between items-center border-b pb-3 border-slate-100 mb-4">
+        <h3 class="font-extrabold text-lg text-slate-900">Catégories</h3>
+        <button onclick="closeCategoryManager()" class="text-slate-400 hover:text-slate-700 text-3xl font-bold">&times;</button>
+      </div>
+      <div id="category-manager-list" class="space-y-2 max-h-[50vh] overflow-y-auto mb-4 scrollbar-none"></div>
+      <button onclick="addNewCategoryFromManager()" class="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-sm font-bold transition-colors shadow-md">
+        + Nouvelle Catégorie
+      </button>
+    </div>
+  </div>
+
   <script>
-    const CACHE_NAME = 'todoapp_v153';
+    const CACHE_NAME = 'todoapp_v154';
 
     if ('serviceWorker' in navigator) {
       const swCode = `
@@ -440,7 +458,7 @@
       }
     }
 
-    const STORAGE_KEY = 'todoapp_tasks_v153';
+    const STORAGE_KEY = 'todoapp_tasks_v154';
 
     function generateSafeId() {
       return Math.floor((Date.now() % 1000000000)) * 1000 + Math.floor(Math.random() * 1000);
@@ -465,6 +483,7 @@
     }
 
     let rawLocal = localStorage.getItem(STORAGE_KEY) || 
+                   localStorage.getItem('todoapp_tasks_v153') || 
                    localStorage.getItem('todoapp_tasks_v152') || 
                    localStorage.getItem('todoapp_tasks_v151') || 
                    localStorage.getItem('todoapp_tasks_v150') || '[]';
@@ -478,8 +497,10 @@
 
     function updateCategories() {
       const localCustomCats = JSON.parse(localStorage.getItem('todoapp_custom_cats') || '[]');
+      const deletedBaseCats = JSON.parse(localStorage.getItem('todoapp_deleted_base_cats') || '[]');
+      const activeBaseCats = BASE_CATEGORIES.filter(c => !deletedBaseCats.includes(c));
       const usedCategories = todos.map(t => t.category).filter(c => c && c.trim() !== '');
-      const mergedCats = new Set([...BASE_CATEGORIES, ...localCustomCats, ...usedCategories]);
+      const mergedCats = new Set([...activeBaseCats, ...localCustomCats, ...usedCategories]);
       
       mergedCats.delete('Tout');
       mergedCats.delete('Masquées');
@@ -904,7 +925,7 @@
           class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${currentEditing.selectedCategory === cat ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 text-slate-600 border-slate-200'}">
           ${escapeHtml(cat)}
         </button>
-      `).join('') + `<button type="button" onclick="addNewCategory()" class="px-2.5 py-1.5 bg-slate-200 text-slate-700 hover:bg-slate-300 rounded-xl text-xs font-bold">+</button>`;
+      `).join('') + `<button type="button" onclick="addNewCategory()" class="px-3 py-1.5 bg-slate-200 text-slate-700 hover:bg-slate-300 rounded-xl text-xs font-bold border border-slate-300 shadow-sm">+</button>`;
     }
 
     function selectModalCategory(cat) { currentEditing.selectedCategory = cat; renderModalCategories(); }
@@ -1136,7 +1157,80 @@
         <button onclick="setCategory('${escapeHtml(cat)}')" class="px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${activeCategory === cat ? 'bg-slate-900 text-white border-slate-900 shadow-sm' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}">
           ${escapeHtml(cat)}
         </button>
+      `).join('') + `
+        <button onclick="openCategoryManager()" class="px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200 ml-2 shrink-0">
+          ⚙️ Modifier
+        </button>
+      `;
+    }
+
+    function openCategoryManager() {
+      renderCategoryManagerList();
+      document.getElementById('category-manager-modal').classList.remove('hidden');
+      document.getElementById('category-manager-modal').classList.add('flex');
+    }
+
+    function closeCategoryManager() {
+      document.getElementById('category-manager-modal').classList.add('hidden');
+      document.getElementById('category-manager-modal').classList.remove('flex');
+    }
+
+    function closeCategoryManagerOnOut(e) { 
+      if (e.target.id === 'category-manager-modal') closeCategoryManager(); 
+    }
+
+    function renderCategoryManagerList() {
+      const list = document.getElementById('category-manager-list');
+      list.innerHTML = categories.filter(c => c !== 'Tout' && c !== 'Masquées').map(cat => `
+        <div class="flex justify-between items-center bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl">
+          <span class="text-sm font-bold text-slate-800">${escapeHtml(cat)}</span>
+          ${cat !== 'Général' ? `<button onclick="deleteCategory('${escapeHtml(cat)}')" class="text-rose-500 hover:text-rose-700 font-bold text-xl leading-none px-2" title="Supprimer">&times;</button>` : ''}
+        </div>
       `).join('');
+    }
+
+    async function deleteCategory(cat) {
+      if (confirm(\`Supprimer la catégorie "\${cat}" ? Les tâches associées seront déplacées vers "Général".\`)) {
+        let custom = JSON.parse(localStorage.getItem('todoapp_custom_cats') || '[]');
+        custom = custom.filter(c => c !== cat);
+        localStorage.setItem('todoapp_custom_cats', JSON.stringify(custom));
+        
+        let deletedBase = JSON.parse(localStorage.getItem('todoapp_deleted_base_cats') || '[]');
+        if (BASE_CATEGORIES.includes(cat) && !deletedBase.includes(cat)) {
+          deletedBase.push(cat);
+          localStorage.setItem('todoapp_deleted_base_cats', JSON.stringify(deletedBase));
+        }
+
+        let updatedTasks = [];
+        todos.forEach(t => {
+          if (t.category === cat) {
+            t.category = 'Général';
+            updatedTasks.push(t);
+          }
+        });
+        
+        if (activeCategory === cat) activeCategory = 'Tout';
+        
+        saveLocal();
+        for (const t of updatedTasks) { await pushTaskToCloud(t); }
+        if (updatedTasks.length > 0) await syncCloud();
+        
+        renderCategoryManagerList();
+      }
+    }
+
+    function addNewCategoryFromManager() {
+      const name = prompt("Nom de la nouvelle catégorie :");
+      if (name && name.trim()) {
+        const clean = name.trim();
+        const localCustomCats = JSON.parse(localStorage.getItem('todoapp_custom_cats') || '[]');
+        if (!localCustomCats.includes(clean)) {
+          localCustomCats.push(clean);
+          localStorage.setItem('todoapp_custom_cats', JSON.stringify(localCustomCats));
+        }
+        updateCategories();
+        renderCategoryManagerList();
+      }
     }
 
     function setCategory(cat) { activeCategory = cat; renderCategoryTabs(); render(); }
@@ -1478,11 +1572,15 @@
           backlinksHtml = `
             <div class="mt-1.5 flex flex-wrap gap-1 items-center text-[10px] text-slate-500 font-medium">
               <span class="text-slate-400 font-bold">↩ Cité dans :</span>
-              ${backlinks.map(b => `
-                <button onclick="scrollToTask(event, ${b.id})" class="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded transition-colors truncate max-w-[150px]" title="${escapeHtml(b.text)}">
-                  🔗 ${escapeHtml(b.text)}
-                </button>
-              `).join('')}
+              ${backlinks.map(b => {
+                let cleanText = b.text.replace(/\[\[(\d+)\]\]/g, (match, idStr) => {
+                  const t = todos.find(task => task.id === Number(idStr));
+                  return t ? t.text.replace(/\[\[\d+\]\]/g, '').trim() : 'Tâche';
+                });
+                return `<button onclick="scrollToTask(event, ${b.id})" class="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded transition-colors truncate max-w-[150px]" title="\${escapeHtml(cleanText)}">
+                  🔗 \${escapeHtml(cleanText)}
+                </button>`;
+              }).join('')}
             </div>
           `;
         }
@@ -1517,7 +1615,7 @@
                       ${formatTextWithLinks(todo.text)}
                     </span>
                     ${todo.paused ? `<span class="text-[10px] font-bold px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-md">PAUSE</span>` : ''}
-                    ${hasChildren && isCollapsed ? `<span class="text-[10px] font-bold px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded-md">+${children.length} masquée${children.length > 1 ? 's' : ''}</span>` : ''}
+                    ${hasChildren && isCollapsed ? `<span class="text-[10px] font-bold px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded-md">+\${children.length} masquée\${children.length > 1 ? 's' : ''}</span>` : ''}
                   </div>
 
                   <div class="flex flex-wrap gap-1.5 mt-1">
@@ -1552,7 +1650,7 @@
       if (!html) treeContainer.innerHTML = `<p class="text-center text-slate-400 text-sm py-8">Aucune tâche dans cette catégorie ou correspondant à la recherche.</p>`;
       else treeContainer.innerHTML = html;
       const activeCount = todos.filter(t => !t.completed).length;
-      countEl.textContent = `${activeCount} tâche${activeCount > 1 ? 's' : ''} restante${activeCount > 1 ? 's' : ''}`;
+      countEl.textContent = `\${activeCount} tâche\${activeCount > 1 ? 's' : ''} restante\${activeCount > 1 ? 's' : ''}`;
       
       updateGlobalProgress();
     }
@@ -1564,4 +1662,8 @@
     applyZoom(1.0); 
   </script>
 </body>
-</html>
+</html>"""
+
+with open('todoapp_v1.5.4.html', 'w', encoding='utf-8') as f:
+    f.write(html_content)
+print("File generated successfully: todoapp_v1.5.4.html")
