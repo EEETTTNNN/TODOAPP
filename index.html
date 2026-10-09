@@ -1,14 +1,17 @@
-<!-- TODOAPP - Version 1.5.4 -->
+<!-- TODOAPP - Version 1.5.5 -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>TODOAPP - v1.5.4</title>
+  <title>TODOAPP - v1.5.5</title>
   
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#0f172a">
+  
+  <!-- Icône pour Chrome / Favoris Navigateur PC -->
+  <link rel="icon" type="image/jpeg" href="appicon.jpg">
   
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -134,7 +137,7 @@
           <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <h1 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">TODOAPP</h1>
             <span id="sync-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0"></span>
-            <span class="text-xs text-slate-500 font-bold inline-block">v1.5.4</span>
+            <span class="text-xs text-slate-500 font-bold inline-block">v1.5.5</span>
           </div>
 
           <div class="flex items-center gap-1 shrink-0">
@@ -287,7 +290,7 @@
       <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-200">
         <div>
           <div class="text-xs font-bold text-slate-800">Version de l'application</div>
-          <div class="text-[11px] text-slate-500">v1.5.4 (Cache: todoapp_v154)</div>
+          <div class="text-[11px] text-slate-500">v1.5.5 (Cache: todoapp_v155)</div>
         </div>
         <button onclick="forceAppUpdate()" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800">Forcer MaJ</button>
       </div>
@@ -309,7 +312,7 @@
   </div>
 
   <script>
-    const CACHE_NAME = 'todoapp_v154';
+    const CACHE_NAME = 'todoapp_v155';
 
     if ('serviceWorker' in navigator) {
       const swCode = `
@@ -458,7 +461,7 @@
       }
     }
 
-    const STORAGE_KEY = 'todoapp_tasks_v154';
+    const STORAGE_KEY = 'todoapp_tasks_v155';
 
     function generateSafeId() {
       return Math.floor((Date.now() % 1000000000)) * 1000 + Math.floor(Math.random() * 1000);
@@ -483,6 +486,7 @@
     }
 
     let rawLocal = localStorage.getItem(STORAGE_KEY) || 
+                   localStorage.getItem('todoapp_tasks_v154') || 
                    localStorage.getItem('todoapp_tasks_v153') || 
                    localStorage.getItem('todoapp_tasks_v152') || 
                    localStorage.getItem('todoapp_tasks_v151') || 
