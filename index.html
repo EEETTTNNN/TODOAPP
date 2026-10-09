@@ -757,7 +757,7 @@
 
     function addSubtask(e, parentId) {
       if (e) e.stopPropagation();
-      const parent = todos.find(t => t.id === Number(parentId));
+      const parent = todos.find(t => String(t.id) === String(parentId));
       if (!parent) return;
 
       currentEditing = { id: 'new-subtask', parentId: parent.id, selectedCategory: parent.category || 'Général', selectedPriority: 0 };
@@ -779,16 +779,16 @@
 
     function toggleCollapse(e, id) {
       if (e) e.stopPropagation();
-      const task = todos.find(t => t.id === Number(id));
+      const task = todos.find(t => String(t.id) === String(id));
       if (!task) return;
       task.collapsed = !task.collapsed;
       saveLocal();
     }
 
     function uncollapseAncestors(taskId, updatedList = []) {
-      const task = todos.find(t => t.id === taskId);
+      const task = todos.find(t => String(t.id) === String(taskId));
       if (task && task.parent_id) {
-        const parent = todos.find(t => t.id === task.parent_id);
+        const parent = todos.find(t => String(t.id) === String(task.parent_id));
         if (parent && parent.collapsed) {
           parent.collapsed = false;
           updatedList.push(parent);
@@ -798,7 +798,7 @@
     }
 
     function uncheckDescendants(taskId, updatedList) {
-      const children = todos.filter(t => t.parent_id === taskId);
+      const children = todos.filter(t => String(t.parent_id) === String(taskId));
       for (const child of children) {
         if (child.completed) {
           child.completed = false;
@@ -810,7 +810,7 @@
 
     function uncheckAncestors(parentId, updatedList) {
       if (!parentId) return;
-      const parent = todos.find(t => t.id === parentId);
+      const parent = todos.find(t => String(t.id) === String(parentId));
       if (parent && parent.completed) {
         parent.completed = false;
         if (!updatedList.some(u => u.id === parent.id)) updatedList.push(parent);
@@ -820,7 +820,7 @@
 
     async function toggleTask(e, id) {
       if (e) e.stopPropagation();
-      const task = todos.find(t => t.id === Number(id));
+      const task = todos.find(t => String(t.id) === String(id));
       if (!task) return;
       const newStatus = !task.completed;
       const updatedTasks = [];
@@ -841,10 +841,10 @@
       const idsToDelete = [];
       function collectIds(targetId) {
         idsToDelete.push(targetId);
-        todos.filter(t => t.parent_id === targetId).forEach(child => collectIds(child.id));
+        todos.filter(t => String(t.parent_id) === String(targetId)).forEach(child => collectIds(child.id));
       }
       collectIds(numericId);
-      todos = todos.filter(t => !idsToDelete.includes(t.id));
+      todos = todos.filter(t => !idsToDelete.some(delId => String(delId) === String(t.id)));
       saveLocal();
       try { 
         if (supabaseClient) {
@@ -855,7 +855,7 @@
     }
 
     function openModal(id) {
-      const item = todos.find(t => t.id === Number(id));
+      const item = todos.find(t => String(t.id) === String(id));
       if (!item) return;
       currentEditing = { id: item.id, parentId: item.parent_id, selectedCategory: item.category || 'Général', selectedPriority: item.priority || 0 };
       document.getElementById('modal-heading').textContent = item.parent_id ? 'Éditer la sous-tâche' : 'Éditer la tâche';
@@ -1041,12 +1041,24 @@
       input.focus();
     }
 
+    function getCleanTaskText(text, visited = new Set()) {
+      if (!text) return '';
+      return String(text).replace(/\[\[([^\]]+)\]\]/g, (match, idStr) => {
+        if (visited.has(String(idStr))) return 'Tâche';
+        const linked = todos.find(t => String(t.id) === String(idStr));
+        if (!linked) return 'Tâche';
+        const newVisited = new Set(visited);
+        newVisited.add(String(idStr));
+        return getCleanTaskText(linked.text, newVisited);
+      }).trim();
+    }
+
     function handleTaskLinkAutocomplete(e) {
       const input = e.target;
       const val = input.value;
       const cursorPos = input.selectionStart || 0;
       const textBeforeCursor = val.substring(0, cursorPos);
-      const match = textBeforeCursor.match(/\\$([^\\s$]*)$/);
+      const match = textBeforeCursor.match(/\$([^\s$]*)$/);
       
       const suggestionsList = document.getElementById('task-link-suggestions');
       
@@ -1054,8 +1066,8 @@
         currentLinkInput = input;
         const linkSearchTerm = match[1].toLowerCase();
         const filteredTasks = todos.filter(t => 
-            t.text.toLowerCase().includes(linkSearchTerm) && 
-            t.id !== currentEditing.id
+            getCleanTaskText(t.text).toLowerCase().includes(linkSearchTerm) && 
+            String(t.id) !== String(currentEditing.id)
         );
         
         if (filteredTasks.length > 0) {
@@ -1065,7 +1077,7 @@
           
           suggestionsList.innerHTML = filteredTasks.map(t => `
             <li class="px-3 py-2 font-medium hover:bg-slate-100 cursor-pointer border-b border-slate-50 last:border-0 truncate" onmousedown="insertTaskLink(event, ${t.id})">
-              ${escapeHtml(t.text)}
+              ${escapeHtml(getCleanTaskText(t.text))}
             </li>
           `).join('');
           suggestionsList.classList.remove('hidden');
@@ -1087,7 +1099,7 @@
       const textBeforeCursor = val.substring(0, cursorPos);
       const textAfterCursor = val.substring(cursorPos);
       
-      const match = textBeforeCursor.match(/\\$([^\\s$]*)$/);
+      const match = textBeforeCursor.match(/\$([^\s$]*)$/);
       if (match) {
         const startIdx = match.index;
         const newTextBefore = textBeforeCursor.substring(0, startIdx) + `[[${taskId}]] `;
@@ -1120,10 +1132,10 @@
       pauseModes.forEach(r => { if (r.checked) pauseMode = r.value; });
 
       if (currentEditing.id === 'new-subtask') {
-        const parent = todos.find(t => t.id === currentEditing.parentId);
+        const parent = todos.find(t => String(t.id) === String(currentEditing.parentId));
         if (parent) parent.collapsed = false;
 
-        const siblings = todos.filter(t => t.parent_id === currentEditing.parentId);
+        const siblings = todos.filter(t => String(t.parent_id) === String(currentEditing.parentId));
         const newOrder = siblings.length > 0 ? Math.min(...siblings.map(t => t.manual_order || 0)) - 10 : 0;
 
         const newSub = {
@@ -1138,7 +1150,7 @@
         if (parent) await pushTaskToCloud(parent);
         await syncCloud();
       } else {
-        const task = todos.find(t => t.id === currentEditing.id);
+        const task = todos.find(t => String(t.id) === String(currentEditing.id));
         if (task) {
           task.text = title; task.category = currentEditing.selectedCategory;
           task.priority = currentEditing.selectedPriority; task.tags = tags;
@@ -1237,7 +1249,7 @@
     
     function hasAncestorWithCategory(parentId, categoryName) {
       if (!parentId) return false;
-      const parent = todos.find(t => t.id === parentId);
+      const parent = todos.find(t => String(t.id) === String(parentId));
       if (!parent) return false;
       if (parent.category === categoryName) return true;
       return hasAncestorWithCategory(parent.parent_id, categoryName);
@@ -1290,22 +1302,22 @@
       e.preventDefault();
       e.currentTarget.classList.remove('drop-target-active');
       
-      if (!draggedTaskId || draggedTaskId === targetId) return;
-      const draggedTask = todos.find(t => t.id === draggedTaskId);
-      const targetTask = todos.find(t => t.id === targetId);
+      if (!draggedTaskId || String(draggedTaskId) === String(targetId)) return;
+      const draggedTask = todos.find(t => String(t.id) === String(draggedTaskId));
+      const targetTask = todos.find(t => String(t.id) === String(targetId));
       
       if (!draggedTask || !targetTask) return;
       if (hasAncestor(targetTask.id, draggedTask.id)) return;
       
       draggedTask.parent_id = targetTask.parent_id;
 
-      let siblings = todos.filter(t => t.parent_id === targetTask.parent_id);
+      let siblings = todos.filter(t => String(t.parent_id) === String(targetTask.parent_id));
       siblings.sort((a, b) => (a.manual_order || 0) - (b.manual_order || 0));
       
-      const draggedIndex = siblings.findIndex(t => t.id === draggedTaskId);
+      const draggedIndex = siblings.findIndex(t => String(t.id) === String(draggedTaskId));
       if (draggedIndex > -1) siblings.splice(draggedIndex, 1);
       
-      const insertIndex = siblings.findIndex(t => t.id === targetId);
+      const insertIndex = siblings.findIndex(t => String(t.id) === String(targetId));
       if (insertIndex > -1) {
         siblings.splice(insertIndex, 0, draggedTask);
       } else {
@@ -1325,17 +1337,17 @@
     
     function hasAncestor(childId, possibleAncestorId) {
       if (!childId) return false;
-      if (childId === possibleAncestorId) return true;
-      const child = todos.find(t => t.id === childId);
+      if (String(childId) === String(possibleAncestorId)) return true;
+      const child = todos.find(t => String(t.id) === String(childId));
       if (!child) return false;
       return hasAncestor(child.parent_id, possibleAncestorId);
     }
 
     function getTaskState(taskId) {
-      const task = todos.find(t => t.id === taskId);
+      const task = todos.find(t => String(t.id) === String(taskId));
       if (!task) return 'red';
       
-      const children = todos.filter(t => t.parent_id === taskId);
+      const children = todos.filter(t => String(t.parent_id) === String(taskId));
       
       if (children.length > 0) {
         const allChildrenCompleted = children.every(c => c.completed && getTaskState(c.id) === 'green');
@@ -1353,28 +1365,28 @@
     function formatTextWithLinks(text) {
       if (!text) return '';
       let escaped = escapeHtml(text);
-      return escaped.replace(/\\[\\[(\\d+)\\]\\]/g, (match, idStr) => {
-        const id = Number(idStr);
-        const task = todos.find(t => t.id === id);
+      return escaped.replace(/\[\[([^\]]+)\]\]/g, (match, idStr) => {
+        const task = todos.find(t => String(t.id) === String(idStr));
         if (!task) return `<span class="line-through text-slate-400">Tâche introuvable</span>`;
         
-        const state = getTaskState(id);
+        const state = getTaskState(task.id);
         let colorClass = 'text-rose-500'; 
         let accentColor = 'accent-rose-500';
         if (state === 'green') { colorClass = 'text-emerald-500'; accentColor = 'accent-emerald-500'; }
         else if (state === 'orange') { colorClass = 'text-amber-500'; accentColor = 'accent-amber-500'; }
         
         const isChecked = task.completed ? 'checked' : '';
+        const cleanTitle = getCleanTaskText(task.text) || 'Tâche';
         
         return `<span class="inline-flex items-center gap-1.5 mx-1 ${colorClass} font-bold px-1.5 py-0.5 bg-slate-100/60 rounded align-middle border border-slate-200/50">
-                  <input type="checkbox" ${isChecked} onclick="toggleTask(event, ${id})" class="w-4 h-4 ${accentColor} rounded cursor-pointer shrink-0 mt-[1px]">
-                  <span class="cursor-pointer hover:underline truncate max-w-[150px]" onclick="scrollToTask(event, ${id})">🔗 ${escapeHtml(task.text)}</span>
+                  <input type="checkbox" ${isChecked} onclick="toggleTask(event, ${task.id})" class="w-4 h-4 ${accentColor} rounded cursor-pointer shrink-0 mt-[1px]">
+                  <span class="cursor-pointer hover:underline truncate max-w-[150px]" onclick="scrollToTask(event, ${task.id})">🔗 ${escapeHtml(cleanTitle)}</span>
                 </span>`;
       });
     }
 
     function getTopLevelCategory(taskId) {
-      const task = todos.find(t => t.id === taskId);
+      const task = todos.find(t => String(t.id) === String(taskId));
       if (!task) return 'Général';
       if (task.parent_id) return getTopLevelCategory(task.parent_id);
       return task.category || 'Général';
@@ -1383,10 +1395,10 @@
     function scrollToTask(e, id) {
       if (e) e.stopPropagation();
       
-      const task = todos.find(t => t.id === id);
+      const task = todos.find(t => String(t.id) === String(id));
       if (!task) return;
 
-      const taskCat = getTopLevelCategory(id);
+      const taskCat = getTopLevelCategory(task.id);
       let changedTab = false;
       
       if (activeCategory !== 'Tout' && activeCategory !== taskCat) {
@@ -1399,7 +1411,7 @@
       }
 
       let updatedList = [];
-      uncollapseAncestors(id, updatedList);
+      uncollapseAncestors(task.id, updatedList);
       
       if (updatedList.length > 0 || changedTab) {
           if (updatedList.length > 0) {
@@ -1411,7 +1423,7 @@
       }
 
       setTimeout(() => {
-        const el = document.getElementById('task-card-' + id);
+        const el = document.getElementById('task-card-' + task.id);
         if (el) {
           el.scrollIntoView({ behavior: 'smooth', block: 'center' });
           el.classList.add('highlight-task');
@@ -1465,7 +1477,7 @@
     function getBacklinks(taskId) {
       const targetPattern = `[[${taskId}]]`;
       return todos.filter(t => 
-        t.id !== taskId && 
+        String(t.id) !== String(taskId) && 
         ((t.text && t.text.includes(targetPattern)) || (t.notes && t.notes.includes(targetPattern)))
       );
     }
@@ -1478,15 +1490,15 @@
     }
 
     function hasMatchingDescendantTags(taskId) {
-      const children = todos.filter(c => c.parent_id === taskId);
+      const children = todos.filter(c => String(c.parent_id) === String(taskId));
       if (children.length === 0) return false;
       return children.some(c => taskMatchesTags(c) || hasMatchingDescendantTags(c.id));
     }
 
     function hasMatchingAncestorTags(taskId) {
-      const task = todos.find(t => t.id === taskId);
+      const task = todos.find(t => String(t.id) === String(taskId));
       if (!task || !task.parent_id) return false;
-      const parent = todos.find(p => p.id === task.parent_id);
+      const parent = todos.find(p => String(p.id) === String(task.parent_id));
       if (!parent) return false;
       if (taskMatchesTags(parent)) return true;
       return hasMatchingAncestorTags(parent.id);
@@ -1497,13 +1509,13 @@
         const isMasquer = t.paused && t.pauseMode === 'masquer';
         if (activeCategory === 'Masquées') {
             if (level === 0 && !(isMasquer && t.parent_id === null)) return false;
-            if (level !== 0 && t.parent_id !== parentId) return false;
+            if (level !== 0 && String(t.parent_id) !== String(parentId)) return false;
         } else {
             if (isMasquer) return false;
             if (level === 0) {
               if (activeCategory === 'Tout') { if (t.parent_id !== null) return false; } 
               else { if (t.category !== activeCategory) return false; if (hasAncestorWithCategory(t.parent_id, activeCategory)) return false; }
-            } else { if (t.parent_id !== parentId) return false; }
+            } else { if (String(t.parent_id) !== String(parentId)) return false; }
         }
 
         if (activeSearchTags.length > 0) {
@@ -1521,7 +1533,7 @@
 
       return items.map(todo => {
         const isGriser = todo.paused && todo.pauseMode !== 'masquer';
-        const children = todos.filter(c => c.parent_id === todo.id);
+        const children = todos.filter(c => String(c.parent_id) === String(todo.id));
         const hasChildren = children.length > 0;
         
         const forceUncollapse = activeSearchTags.length > 0 && hasMatchingDescendantTags(todo.id);
@@ -1548,7 +1560,7 @@
         if (hasChildren) {
           const allDescendants = [];
           function getDescendants(pId) {
-            const kids = todos.filter(t => t.parent_id === pId);
+            const kids = todos.filter(t => String(t.parent_id) === String(pId));
             allDescendants.push(...kids);
             kids.forEach(k => getDescendants(k.id));
           }
@@ -1573,10 +1585,7 @@
             <div class="mt-1.5 flex flex-wrap gap-1 items-center text-[10px] text-slate-500 font-medium">
               <span class="text-slate-400 font-bold">↩ Cité dans :</span>
               ${backlinks.map(b => {
-                let cleanText = b.text.replace(/\\[\\[(\\d+)\\]\\]/g, (match, idStr) => {
-                  const t = todos.find(task => task.id === Number(idStr));
-                  return t ? t.text.replace(/\\[\\[\\d+\\]\\]/g, '').trim() : 'Tâche';
-                });
+                let cleanText = getCleanTaskText(b.text);
                 return `<button onclick="scrollToTask(event, ${b.id})" class="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded transition-colors truncate max-w-[150px]" title="${escapeHtml(cleanText)}">
                   🔗 ${escapeHtml(cleanText)}
                 </button>`;
