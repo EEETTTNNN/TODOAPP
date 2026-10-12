@@ -676,7 +676,7 @@
 
       try {
         const fetchPromise = supabaseClient.from('todos').select('*');
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout réseau")), 3000));
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout réseau")), 8000));
 
         const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
 
