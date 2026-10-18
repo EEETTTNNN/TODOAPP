@@ -1,10 +1,10 @@
-<!-- TODOAPP - Version 1.5.7 -->
+<!-- TODOAPP - Version 1.5.8 -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>TODOAPP - v1.5.7</title>
+  <title>TODOAPP - v1.5.8</title>
   
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -137,7 +137,7 @@
           <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <h1 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">TODOAPP</h1>
             <span id="sync-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0"></span>
-            <span class="text-xs text-slate-500 font-bold inline-block">v1.5.7</span>
+            <span class="text-xs text-slate-500 font-bold inline-block">v1.5.8</span>
           </div>
 
           <div class="flex items-center gap-1 shrink-0">
@@ -174,10 +174,10 @@
 
       </header>
 
-      <!-- SEPARATION EN TROIS BLOCS (Défilables horizontalement) -->
-      <div class="flex gap-2 mb-2 shrink-0 w-full overflow-x-auto scrollbar-none snap-x snap-mandatory h-10 items-stretch" id="input-bars-container">
-        <!-- Partie 1 : Ajout de tâche -->
-        <div class="flex gap-1 shrink-0 w-full snap-start items-stretch">
+      <!-- SEPARATION EN TROIS BLOCS (1/3 chacun côte à côte) -->
+      <div class="flex gap-2 mb-2 shrink-0 w-full items-stretch h-10">
+        <!-- Partie 1 : Ajout de tâche (1/3) -->
+        <div class="flex-1 min-w-0 flex gap-1 h-full items-stretch">
           <form id="add-task-form" onsubmit="addTask(event)" class="flex-1 min-w-0 relative h-full">
             <input type="text" id="task-input" placeholder="Ajouter... ($ pour lien)" oninput="handleTaskLinkAutocomplete(event)" class="w-full h-full bg-slate-50 border border-slate-300 rounded-xl px-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-900" required>
           </form>
@@ -186,15 +186,15 @@
           </button>
         </div>
 
-        <!-- Partie 2 : Recherche par tags -->
-        <div class="shrink-0 w-full snap-start relative h-full">
+        <!-- Partie 2 : Recherche par tags (1/3) -->
+        <div class="flex-1 min-w-0 relative h-full">
           <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none">🔍</span>
           <input type="text" id="search-tags-input" placeholder="Tags (lieu, nom)..." oninput="handleSearchInput(event)" class="w-full h-full bg-slate-50 border border-slate-300 rounded-xl pl-8 pr-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-900">
           <ul id="search-tag-suggestions" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-[200] max-h-40 overflow-y-auto text-sm"></ul>
         </div>
 
-        <!-- Partie 3 : Recherche par titres -->
-        <div class="shrink-0 w-full snap-start relative h-full">
+        <!-- Partie 3 : Recherche par titres (1/3) -->
+        <div class="flex-1 min-w-0 relative h-full">
           <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none">🔎</span>
           <input type="text" id="search-titles-input" placeholder="Recherche par titre..." oninput="handleTitleSearchInput(event)" class="w-full h-full bg-slate-50 border border-slate-300 rounded-xl pl-8 pr-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-900">
         </div>
@@ -299,7 +299,7 @@
       <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-200">
         <div>
           <div class="text-xs font-bold text-slate-800">Version de l'application</div>
-          <div class="text-[11px] text-slate-500">v1.5.7 (Cache: todoapp_v157)</div>
+          <div class="text-[11px] text-slate-500">v1.5.8 (Cache: todoapp_v158)</div>
         </div>
         <button onclick="forceAppUpdate()" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800">Forcer MaJ</button>
       </div>
@@ -321,7 +321,7 @@
   </div>
 
   <script>
-    const CACHE_NAME = 'todoapp_v157';
+    const CACHE_NAME = 'todoapp_v158';
 
     if ('serviceWorker' in navigator) {
       const swCode = `
@@ -480,7 +480,7 @@
       }
     }
 
-    const STORAGE_KEY = 'todoapp_tasks_v157';
+    const STORAGE_KEY = 'todoapp_tasks_v158';
 
     function generateSafeId() {
       return Math.floor((Date.now() % 1000000000)) * 1000 + Math.floor(Math.random() * 1000);
@@ -505,6 +505,7 @@
     }
 
     let rawLocal = localStorage.getItem(STORAGE_KEY) || 
+                   localStorage.getItem('todoapp_tasks_v157') || 
                    localStorage.getItem('todoapp_tasks_v156') || 
                    localStorage.getItem('todoapp_tasks_v155') || 
                    localStorage.getItem('todoapp_tasks_v154') || 
