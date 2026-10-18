@@ -1,10 +1,10 @@
-<!-- TODOAPP - Version 1.5.6 -->
+<!-- TODOAPP - Version 1.5.7 -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>TODOAPP - v1.5.6</title>
+  <title>TODOAPP - v1.5.7</title>
   
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -137,7 +137,7 @@
           <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <h1 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">TODOAPP</h1>
             <span id="sync-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0"></span>
-            <span class="text-xs text-slate-500 font-bold inline-block">v1.5.6</span>
+            <span class="text-xs text-slate-500 font-bold inline-block">v1.5.7</span>
           </div>
 
           <div class="flex items-center gap-1 shrink-0">
@@ -174,23 +174,29 @@
 
       </header>
 
-      <!-- SEPARATION EN TROIS BLOCS -->
-      <div class="flex gap-2 mb-2 shrink-0 w-full items-stretch h-10">
-        <!-- Partie Gauche : Ajout de tâche -->
-        <form id="add-task-form" onsubmit="addTask(event)" class="flex-1 min-w-0 relative">
-          <input type="text" id="task-input" placeholder="Ajouter... ($ pour lien)" oninput="handleTaskLinkAutocomplete(event)" class="w-full h-full bg-slate-50 border border-slate-300 rounded-xl px-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-900" required>
-        </form>
+      <!-- SEPARATION EN TROIS BLOCS (Défilables horizontalement) -->
+      <div class="flex gap-2 mb-2 shrink-0 w-full overflow-x-auto scrollbar-none snap-x snap-mandatory h-10 items-stretch" id="input-bars-container">
+        <!-- Partie 1 : Ajout de tâche -->
+        <div class="flex gap-1 shrink-0 w-full snap-start items-stretch">
+          <form id="add-task-form" onsubmit="addTask(event)" class="flex-1 min-w-0 relative h-full">
+            <input type="text" id="task-input" placeholder="Ajouter... ($ pour lien)" oninput="handleTaskLinkAutocomplete(event)" class="w-full h-full bg-slate-50 border border-slate-300 rounded-xl px-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-900" required>
+          </form>
+          <button type="submit" form="add-task-form" class="w-10 h-full bg-slate-900 text-white rounded-xl font-bold text-xl hover:bg-slate-800 shrink-0 flex items-center justify-center shadow-md pb-0.5">
+            +
+          </button>
+        </div>
 
-        <!-- Bouton central -->
-        <button type="submit" form="add-task-form" class="w-10 h-full bg-slate-900 text-white rounded-xl font-bold text-xl hover:bg-slate-800 shrink-0 flex items-center justify-center shadow-md pb-0.5">
-          +
-        </button>
-
-        <!-- Partie Droite : Recherche par tags -->
-        <div class="flex-1 min-w-0 relative">
+        <!-- Partie 2 : Recherche par tags -->
+        <div class="shrink-0 w-full snap-start relative h-full">
           <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none">🔍</span>
           <input type="text" id="search-tags-input" placeholder="Tags (lieu, nom)..." oninput="handleSearchInput(event)" class="w-full h-full bg-slate-50 border border-slate-300 rounded-xl pl-8 pr-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-900">
           <ul id="search-tag-suggestions" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-[200] max-h-40 overflow-y-auto text-sm"></ul>
+        </div>
+
+        <!-- Partie 3 : Recherche par titres -->
+        <div class="shrink-0 w-full snap-start relative h-full">
+          <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none">🔎</span>
+          <input type="text" id="search-titles-input" placeholder="Recherche par titre..." oninput="handleTitleSearchInput(event)" class="w-full h-full bg-slate-50 border border-slate-300 rounded-xl pl-8 pr-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-900">
         </div>
       </div>
 
@@ -293,7 +299,7 @@
       <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-200">
         <div>
           <div class="text-xs font-bold text-slate-800">Version de l'application</div>
-          <div class="text-[11px] text-slate-500">v1.5.6 (Cache: todoapp_v156)</div>
+          <div class="text-[11px] text-slate-500">v1.5.7 (Cache: todoapp_v157)</div>
         </div>
         <button onclick="forceAppUpdate()" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800">Forcer MaJ</button>
       </div>
@@ -315,7 +321,7 @@
   </div>
 
   <script>
-    const CACHE_NAME = 'todoapp_v156';
+    const CACHE_NAME = 'todoapp_v157';
 
     if ('serviceWorker' in navigator) {
       const swCode = `
@@ -474,7 +480,7 @@
       }
     }
 
-    const STORAGE_KEY = 'todoapp_tasks_v156';
+    const STORAGE_KEY = 'todoapp_tasks_v157';
 
     function generateSafeId() {
       return Math.floor((Date.now() % 1000000000)) * 1000 + Math.floor(Math.random() * 1000);
@@ -499,6 +505,7 @@
     }
 
     let rawLocal = localStorage.getItem(STORAGE_KEY) || 
+                   localStorage.getItem('todoapp_tasks_v156') || 
                    localStorage.getItem('todoapp_tasks_v155') || 
                    localStorage.getItem('todoapp_tasks_v154') || 
                    localStorage.getItem('todoapp_tasks_v153') || 
@@ -512,6 +519,7 @@
     let categories = [];
     let activeCategory = "Tout";
     let activeSearchTags = [];
+    let activeSearchTitle = '';
 
     function updateCategories() {
       const localCustomCats = JSON.parse(localStorage.getItem('todoapp_custom_cats') || '[]');
@@ -856,17 +864,27 @@
     async function deleteTask(e, id) {
       if (e) e.stopPropagation();
       const numericId = Number(id);
-      const idsToDelete = [];
-      function collectIds(targetId) {
-        idsToDelete.push(targetId);
-        todos.filter(t => String(t.parent_id) === String(targetId)).forEach(child => collectIds(child.id));
-      }
-      collectIds(numericId);
-      todos = todos.filter(t => !idsToDelete.some(delId => String(delId) === String(t.id)));
+      const taskToDelete = todos.find(t => String(t.id) === String(numericId));
+      if (!taskToDelete) return;
+
+      const parentId = taskToDelete.parent_id;
+      const directChildren = todos.filter(t => String(t.parent_id) === String(numericId));
+
+      const updatedChildren = [];
+      directChildren.forEach(child => {
+        child.parent_id = parentId;
+        updatedChildren.push(child);
+      });
+
+      todos = todos.filter(t => String(t.id) !== String(numericId));
       saveLocal();
+
       try { 
         if (supabaseClient) {
-          for (const delId of idsToDelete) { await supabaseClient.from('todos').delete().eq('id', delId); }
+          await supabaseClient.from('todos').delete().eq('id', numericId);
+          for (const child of updatedChildren) {
+            await pushTaskToCloud(child);
+          }
         }
       } catch (err) { console.error("Erreur deleteTask:", err); }
       await syncCloud();
@@ -1030,6 +1048,11 @@
       activeSearchTags = input.value.split(',').map(p => p.trim()).filter(p => p.length > 0);
       render();
       input.focus();
+    }
+
+    function handleTitleSearchInput(e) {
+      activeSearchTitle = e.target.value.trim().toLowerCase();
+      render();
     }
 
     function handleTagAutocomplete(e) {
@@ -1522,6 +1545,27 @@
       return hasMatchingAncestorTags(parent.id);
     }
 
+    function taskMatchesTitle(task) {
+      if (!activeSearchTitle) return true;
+      const cleanText = getCleanTaskText(task.text).toLowerCase();
+      return cleanText.includes(activeSearchTitle);
+    }
+
+    function hasMatchingDescendantTitles(taskId) {
+      const children = todos.filter(c => String(c.parent_id) === String(taskId));
+      if (children.length === 0) return false;
+      return children.some(c => taskMatchesTitle(c) || hasMatchingDescendantTitles(c.id));
+    }
+
+    function hasMatchingAncestorTitles(taskId) {
+      const task = todos.find(t => String(t.id) === String(taskId));
+      if (!task || !task.parent_id) return false;
+      const parent = todos.find(p => String(p.id) === String(task.parent_id));
+      if (!parent) return false;
+      if (taskMatchesTitle(parent)) return true;
+      return hasMatchingAncestorTitles(parent.id);
+    }
+
     function renderTaskTree(parentId = null, level = 0) {
       let items = todos.filter(t => {
         const isMasquer = t.paused && t.pauseMode === 'masquer';
@@ -1543,6 +1587,13 @@
           if (!selfMatch && !childMatch && !parentMatch) return false;
         }
 
+        if (activeSearchTitle) {
+          const selfMatch = taskMatchesTitle(t);
+          const childMatch = hasMatchingDescendantTitles(t.id);
+          const parentMatch = hasMatchingAncestorTitles(t.id);
+          if (!selfMatch && !childMatch && !parentMatch) return false;
+        }
+
         return true;
       });
 
@@ -1554,7 +1605,7 @@
         const children = todos.filter(c => String(c.parent_id) === String(todo.id));
         const hasChildren = children.length > 0;
         
-        const forceUncollapse = activeSearchTags.length > 0 && hasMatchingDescendantTags(todo.id);
+        const forceUncollapse = (activeSearchTags.length > 0 && hasMatchingDescendantTags(todo.id)) || (activeSearchTitle && hasMatchingDescendantTitles(todo.id));
         const isCollapsed = forceUncollapse ? false : !!todo.collapsed;
         
         const childrenHTML = (!isCollapsed && hasChildren) ? renderTaskTree(todo.id, level + 1) : '';
