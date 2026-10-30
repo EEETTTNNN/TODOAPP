@@ -1,10 +1,10 @@
-<!-- TODOAPP - Version 1.6.0 -->
+<!-- TODOAPP - Version 1.6.1 -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>TODOAPP - v1.6.0</title>
+  <title>TODOAPP - v1.6.1</title>
   
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -147,7 +147,7 @@
           <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <h1 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">TODOAPP</h1>
             <span id="sync-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0"></span>
-            <span class="text-xs text-slate-500 font-bold inline-block">v1.6.0</span>
+            <span class="text-xs text-slate-500 font-bold inline-block">v1.6.1</span>
           </div>
 
           <div class="flex items-center gap-1 shrink-0">
@@ -309,7 +309,7 @@
       <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-200">
         <div>
           <div class="text-xs font-bold text-slate-800">Version de l'application</div>
-          <div class="text-[11px] text-slate-500">v1.6.0 (Cache: todoapp_v160)</div>
+          <div class="text-[11px] text-slate-500">v1.6.1 (Cache: todoapp_v161)</div>
         </div>
         <button onclick="forceAppUpdate()" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800">Forcer MaJ</button>
       </div>
@@ -331,7 +331,7 @@
   </div>
 
   <script>
-    const CACHE_NAME = 'todoapp_v160';
+    const CACHE_NAME = 'todoapp_v161';
 
     if ('serviceWorker' in navigator) {
       const swCode = `
@@ -490,7 +490,7 @@
       }
     }
 
-    const STORAGE_KEY = 'todoapp_tasks_v160';
+    const STORAGE_KEY = 'todoapp_tasks_v161';
 
     function generateSafeId() {
       return Math.floor((Date.now() % 1000000000)) * 1000 + Math.floor(Math.random() * 1000);
@@ -515,6 +515,7 @@
     }
 
     let rawLocal = localStorage.getItem(STORAGE_KEY) || 
+                   localStorage.getItem('todoapp_tasks_v160') || 
                    localStorage.getItem('todoapp_tasks_v159') || 
                    localStorage.getItem('todoapp_tasks_v158') || 
                    localStorage.getItem('todoapp_tasks_v157') || 
@@ -1397,6 +1398,7 @@
       const rect = wrapper.getBoundingClientRect();
       const offsetY = e.clientY - rect.top;
 
+      // Zone centrale = transformer en sous-tâche (fille)
       if (offsetY > rect.height * 0.25 && offsetY < rect.height * 0.75) {
         wrapper.classList.remove('drop-target-active');
         wrapper.classList.add('drop-target-child-active');
@@ -1432,7 +1434,7 @@
       if (hasAncestor(targetTask.id, draggedTask.id)) return;
       
       if (isMakeChild) {
-        // Transformation en sous-tâche (fille)
+        // Devient fille de la cible (fonctionne à tous les niveaux d'imbrication)
         draggedTask.parent_id = targetTask.id;
         targetTask.collapsed = false;
 
@@ -1445,7 +1447,7 @@
         await pushTaskToCloud(targetTask);
         await syncCloud();
       } else {
-        // Insertion réordonnée à côté de la cible (même niveau que target)
+        // Repositionnement au même niveau que la cible (ou tâche principale si parent de cible = null)
         draggedTask.parent_id = targetTask.parent_id;
 
         let siblings = todos.filter(t => String(t.parent_id) === String(targetTask.parent_id));
@@ -1760,8 +1762,11 @@
           `;
         }
 
+        // Limitation de l'indentation maximale (plafonnée à 4 niveaux pour éviter le débordement d'écran à droite)
+        const effectiveLevel = Math.min(level, 4);
+
         return `
-          <div class="task-item-wrapper flex items-start w-full transition-all rounded-2xl ${level > 0 ? 'ml-3 mt-1 pl-1 border-l-2 border-slate-200/70' : ''}"
+          <div class="task-item-wrapper flex items-start w-full transition-all rounded-2xl ${effectiveLevel > 0 ? 'ml-2 sm:ml-3 mt-1 pl-1 border-l-2 border-slate-200/70' : ''}"
                ondragover="handleDragOver(event)" ondrop="handleDrop(event, ${todo.id})" ondragenter="handleDragEnter(event)" ondragleave="handleDragLeave(event)">
 
             <div class="flex-1 w-full min-w-0">
