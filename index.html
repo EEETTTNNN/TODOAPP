@@ -64,7 +64,7 @@
       position: absolute;
       inset: 0;
       border: 2px dashed #6366f1;
-      background-color: rgba(99, 102, 241, 0.1);
+      background-color: rgba(99, 102, 241, 0.15);
       border-radius: 1rem; z-index: 50; pointer-events: none;
     }
 
@@ -554,7 +554,7 @@
     let currentLinkInput = null;
     let draggedTaskId = null;
     
-    // VARIABLES D'APPUI LONG ET DRAG & DROP v1.6.0
+    // GESTION APPUI LONG ET DRAG & DROP MULTI-NIVEAUX
     let longPressTimer = null;
     let longPressTriggered = false;
 
@@ -1389,8 +1389,8 @@
 
       e.currentTarget.classList.remove('drop-target-active', 'drop-target-child');
 
-      // Détection de la zone centrale (20% à 80% de la hauteur) pour conversion en sous-tâche
-      if (offsetY > height * 0.2 && offsetY < height * 0.8) {
+      // Zone centrale = conversion en sous-tâche
+      if (offsetY > height * 0.25 && offsetY < height * 0.75) {
         e.currentTarget.classList.add('drop-target-child');
       } else {
         e.currentTarget.classList.add('drop-target-active');
@@ -1407,6 +1407,8 @@
     
     async function handleDrop(e, targetId) {
       e.preventDefault();
+      e.stopPropagation(); // EMPÊCHE LA PROPAGATION AU CONTENEUR PARENT
+      
       e.currentTarget.classList.remove('drop-target-active', 'drop-target-child');
       
       if (!draggedTaskId || String(draggedTaskId) === String(targetId)) return;
@@ -1420,8 +1422,8 @@
       const offsetY = e.clientY - rect.top;
       const height = rect.height;
 
-      // Drop au centre = devient sous-tâche fille
-      if (offsetY > height * 0.2 && offsetY < height * 0.8) {
+      // Drop au centre de la carte = devient sous-tâche fille
+      if (offsetY > height * 0.25 && offsetY < height * 0.75) {
         draggedTask.parent_id = targetTask.id;
         targetTask.collapsed = false;
 
@@ -1429,7 +1431,7 @@
         const newOrder = siblings.length > 0 ? Math.max(...siblings.map(t => t.manual_order || 0)) + 10 : 0;
         draggedTask.manual_order = newOrder;
       } else {
-        // Drop sur le trait = niveau du destinataire
+        // Drop sur le bord supérieur/inférieur = même niveau hiérarchique que la cible
         draggedTask.parent_id = targetTask.parent_id;
 
         let siblings = todos.filter(t => String(t.parent_id) === String(targetTask.parent_id));
@@ -1440,7 +1442,7 @@
         
         const insertIndex = siblings.findIndex(t => String(t.id) === String(targetId));
         if (insertIndex > -1) {
-          if (offsetY >= height * 0.8) {
+          if (offsetY >= height * 0.75) {
             siblings.splice(insertIndex + 1, 0, draggedTask);
           } else {
             siblings.splice(insertIndex, 0, draggedTask);
@@ -1465,12 +1467,13 @@
       e.preventDefault();
       if (!draggedTaskId) return;
 
+      // Si le lâcher est intervenu sur une carte de tâche, ne pas exécuter
       if (e.target.closest('.task-item-wrapper')) return;
 
       const draggedTask = todos.find(t => String(t.id) === String(draggedTaskId));
       if (!draggedTask) return;
 
-      // Extrait la tâche de sa tâche mère et la transforme en tâche principale autonome
+      // Rend la tâche autonome (niveau principal)
       draggedTask.parent_id = null;
       const rootTasks = todos.filter(t => t.parent_id === null);
       const newOrder = rootTasks.length > 0 ? Math.max(...rootTasks.map(t => t.manual_order || 0)) + 10 : 0;
@@ -1770,8 +1773,7 @@
         }
 
         return `
-          <div class="task-item-wrapper flex items-start gap-1 transition-all rounded-2xl ${level > 0 ? 'ml-3 mt-1 pl-1 border-l-2 border-slate-200/70' : ''}"
-               ondragover="handleDragOver(event)" ondrop="handleDrop(event, ${todo.id})" ondragenter="handleDragEnter(event)" ondragueleave="handleDragLeave(event)">
+          <div class="task-item-wrapper flex items-start gap-1 transition-all rounded-2xl ${level > 0 ? 'ml-3 mt-1 pl-1 border-l-2 border-slate-200/70' : ''}">
             
             <div draggable="true" ondragstart="handleDragStart(event, ${todo.id})" class="cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-500 mt-[10px] px-1 drag-handle shrink-0" title="Déplacer (Drag & Drop)">
               <svg class="w-5 h-5 fill-current" viewBox="0 0 20 20"><path d="M7 2a2 2 0 10-4 0 2 2 0 004 0zm0 8a2 2 0 10-4 0 2 2 0 004 0zm0 8a2 2 0 10-4 0 2 2 0 004 0zm8-16a2 2 0 10-4 0 2 2 0 004 0zm0 8a2 2 0 10-4 0 2 2 0 004 0zm0 8a2 2 0 10-4 0 2 2 0 004 0z"/></svg>
@@ -1781,6 +1783,10 @@
               <div id="task-card-${todo.id}"
                 draggable="true"
                 ondragstart="handleDragStart(event, ${todo.id})"
+                ondragover="handleDragOver(event)"
+                ondragenter="handleDragEnter(event)"
+                ondragleave="handleDragLeave(event)"
+                ondrop="handleDrop(event, ${todo.id})"
                 ontouchstart="handleCardTouchStart(event, ${todo.id})"
                 ontouchmove="handleCardTouchMove(event)"
                 ontouchend="handleCardTouchEnd(event)"
