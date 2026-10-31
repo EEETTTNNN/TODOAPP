@@ -1,10 +1,10 @@
-<!-- TODOAPP - Version 1.6.2 -->
+<!-- TODOAPP - Version 1.6.0 -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>TODOAPP - v1.6.2</title>
+  <title>TODOAPP - v1.6.0</title>
   
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -58,6 +58,16 @@
       border-radius: 9999px; z-index: 50; pointer-events: none;
     }
 
+    .drop-target-child { position: relative; }
+    .drop-target-child::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border: 2px dashed #6366f1;
+      background-color: rgba(99, 102, 241, 0.1);
+      border-radius: 1rem; z-index: 50; pointer-events: none;
+    }
+
     #category-tabs { cursor: pointer; user-select: none; }
 
     #viewport {
@@ -89,11 +99,11 @@
       break-inside: avoid;
       page-break-inside: avoid;
       margin-bottom: 10px;
-      user-select: none;
     }
 
     #zoom-container.mini-mode .task-card-bg > * { display: none !important; }
     #zoom-container.mini-mode .task-card-bg { height: 120px !important; padding: 0 !important; }
+    #zoom-container.mini-mode .drag-handle { display: none !important; }
 
     .status-border-red { border: 2px solid #f43f5e !important; }
     .status-border-orange { border: 2px solid #f59e0b !important; }
@@ -113,11 +123,6 @@
     #zoom-container.mini-mode .prio-3,
     #zoom-container.mini-mode .prio-4 {
       border-left-width: 24px !important;
-    }
-
-    .dragging-card {
-      opacity: 0.4;
-      transform: scale(0.98);
     }
   </style>
 </head>
@@ -142,7 +147,7 @@
           <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <h1 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">TODOAPP</h1>
             <span id="sync-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0"></span>
-            <span class="text-xs text-slate-500 font-bold inline-block">v1.6.2</span>
+            <span class="text-xs text-slate-500 font-bold inline-block">v1.6.0</span>
           </div>
 
           <div class="flex items-center gap-1 shrink-0">
@@ -169,6 +174,7 @@
 
         <div class="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none" id="category-tabs"></div>
         
+        <!-- Barre de progression côte-à-côte avec pourcentage -->
         <div class="flex items-center gap-2 mt-1 mb-3">
             <div class="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden flex items-center">
                 <div id="global-progress-bar" class="h-full rounded-full transition-all duration-300" style="width: 0%; background-color: hsl(0, 100%, 45%);"></div>
@@ -178,7 +184,9 @@
 
       </header>
 
+      <!-- SEPARATION EN TROIS BLOCS -->
       <div class="flex gap-2 mb-2 shrink-0 w-full overflow-x-auto scrollbar-none snap-x snap-mandatory md:overflow-visible md:flex-row md:snap-none h-10 items-stretch" id="input-bars-container">
+        <!-- Partie 1 : Ajout de tâche -->
         <div class="flex gap-1 shrink-0 w-full md:w-auto md:flex-1 snap-start md:snap-none items-stretch h-full">
           <form id="add-task-form" onsubmit="addTask(event)" class="flex-1 min-w-0 relative h-full">
             <input type="text" id="task-input" placeholder="Ajouter... ($ pour lien)" oninput="handleTaskLinkAutocomplete(event)" class="w-full h-full bg-slate-50 border border-slate-300 rounded-xl px-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-900" required>
@@ -188,12 +196,14 @@
           </button>
         </div>
 
+        <!-- Partie 2 : Recherche par tags -->
         <div class="shrink-0 w-full md:w-auto md:flex-1 snap-start md:snap-none relative h-full">
           <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none">🔍</span>
           <input type="text" id="search-tags-input" placeholder="Tags (lieu, nom)..." oninput="handleSearchInput(event)" class="w-full h-full bg-slate-50 border border-slate-300 rounded-xl pl-8 pr-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-900">
           <ul id="search-tag-suggestions" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-[200] max-h-40 overflow-y-auto text-sm"></ul>
         </div>
 
+        <!-- Partie 3 : Recherche par titres -->
         <div class="shrink-0 w-full md:w-auto md:flex-1 snap-start md:snap-none relative h-full">
           <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none">🔎</span>
           <input type="text" id="search-titles-input" placeholder="Recherche par titre..." oninput="handleTitleSearchInput(event)" class="w-full h-full bg-slate-50 border border-slate-300 rounded-xl pl-8 pr-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-900">
@@ -282,6 +292,7 @@
         </select>
       </div>
 
+      <!-- Import / Export JSON -->
       <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
         <div class="text-xs font-bold text-slate-800 uppercase">Sauvegarde & Restauration</div>
         <div class="flex gap-2">
@@ -298,7 +309,7 @@
       <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-200">
         <div>
           <div class="text-xs font-bold text-slate-800">Version de l'application</div>
-          <div class="text-[11px] text-slate-500">v1.6.2 (Cache: todoapp_v162)</div>
+          <div class="text-[11px] text-slate-500">v1.6.0 (Cache: todoapp_v160)</div>
         </div>
         <button onclick="forceAppUpdate()" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800">Forcer MaJ</button>
       </div>
@@ -320,7 +331,7 @@
   </div>
 
   <script>
-    const CACHE_NAME = 'todoapp_v162';
+    const CACHE_NAME = 'todoapp_v160';
 
     if ('serviceWorker' in navigator) {
       const swCode = `
@@ -479,7 +490,7 @@
       }
     }
 
-    const STORAGE_KEY = 'todoapp_tasks_v162';
+    const STORAGE_KEY = 'todoapp_tasks_v160';
 
     function generateSafeId() {
       return Math.floor((Date.now() % 1000000000)) * 1000 + Math.floor(Math.random() * 1000);
@@ -504,8 +515,6 @@
     }
 
     let rawLocal = localStorage.getItem(STORAGE_KEY) || 
-                   localStorage.getItem('todoapp_tasks_v161') || 
-                   localStorage.getItem('todoapp_tasks_v160') || 
                    localStorage.getItem('todoapp_tasks_v159') || 
                    localStorage.getItem('todoapp_tasks_v158') || 
                    localStorage.getItem('todoapp_tasks_v157') || 
@@ -543,45 +552,44 @@
     let currentSort = localStorage.getItem('todoapp_sort') || 'perso';
     let currentEditing = { id: null, parentId: null, selectedCategory: 'Général', selectedPriority: 0 };
     let currentLinkInput = null;
-
-    // --- GESTION DU GLISSER-DÉPOSER PAR APPUI LONG ---
     let draggedTaskId = null;
+    
+    // VARIABLES D'APPUI LONG ET DRAG & DROP v1.6.0
     let longPressTimer = null;
-    let isLongPressDragging = false;
+    let longPressTriggered = false;
 
-    function handleCardPointerDown(e, id) {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON' || e.target.closest('button') || e.target.closest('input')) {
-        return;
-      }
-      clearTimeout(longPressTimer);
-      const cardEl = document.getElementById('task-card-' + id);
-      
+    function handleCardTouchStart(e, id) {
+      if (e.target.closest('input, button, a')) return;
+      longPressTriggered = false;
+      const cardEl = e.currentTarget;
       longPressTimer = setTimeout(() => {
-        isLongPressDragging = true;
+        longPressTriggered = true;
         draggedTaskId = id;
-        if (cardEl) cardEl.setAttribute('draggable', 'true');
-        if (navigator.vibrate) navigator.vibrate(40);
-        if (cardEl) cardEl.classList.add('dragging-card');
-      }, 300);
+        if (navigator.vibrate) navigator.vibrate(50);
+        cardEl.setAttribute('draggable', 'true');
+        cardEl.classList.add('opacity-50', 'ring-2', 'ring-indigo-500');
+      }, 500);
     }
 
-    function handleCardPointerUp(e, id) {
-      clearTimeout(longPressTimer);
-      const cardEl = document.getElementById('task-card-' + id);
-      if (cardEl && !isLongPressDragging) {
-        cardEl.removeAttribute('draggable');
+    function handleCardTouchMove(e) {
+      if (!longPressTriggered && longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
       }
     }
 
-    function handleCardPointerLeave(e, id) {
-      clearTimeout(longPressTimer);
+    function handleCardTouchEnd(e) {
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
     }
 
     function handleCardClick(e, id) {
-      if (isLongPressDragging) {
+      if (longPressTriggered) {
         e.preventDefault();
         e.stopPropagation();
-        isLongPressDragging = false;
+        longPressTriggered = false;
         return;
       }
       openModal(id);
@@ -1370,35 +1378,36 @@
         if (select) select.value = 'perso';
       }
     }
-
-    function handleDragEnd(e, id) {
-      isLongPressDragging = false;
-      const cardEl = document.getElementById('task-card-' + id);
-      if (cardEl) {
-        cardEl.removeAttribute('draggable');
-        cardEl.classList.remove('dragging-card');
-      }
-    }
     
     function handleDragOver(e) {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
-      e.currentTarget.classList.add('drop-target-active');
+      
+      const rect = e.currentTarget.getBoundingClientRect();
+      const offsetY = e.clientY - rect.top;
+      const height = rect.height;
+
+      e.currentTarget.classList.remove('drop-target-active', 'drop-target-child');
+
+      // Détection de la zone centrale (20% à 80% de la hauteur) pour conversion en sous-tâche
+      if (offsetY > height * 0.2 && offsetY < height * 0.8) {
+        e.currentTarget.classList.add('drop-target-child');
+      } else {
+        e.currentTarget.classList.add('drop-target-active');
+      }
     }
     
     function handleDragEnter(e) {
       e.preventDefault();
-      e.currentTarget.classList.add('drop-target-active');
     }
     
     function handleDragLeave(e) {
-      e.currentTarget.classList.remove('drop-target-active');
+      e.currentTarget.classList.remove('drop-target-active', 'drop-target-child');
     }
     
     async function handleDrop(e, targetId) {
       e.preventDefault();
-      const wrapper = e.currentTarget;
-      wrapper.classList.remove('drop-target-active');
+      e.currentTarget.classList.remove('drop-target-active', 'drop-target-child');
       
       if (!draggedTaskId || String(draggedTaskId) === String(targetId)) return;
       const draggedTask = todos.find(t => String(t.id) === String(draggedTaskId));
@@ -1407,29 +1416,68 @@
       if (!draggedTask || !targetTask) return;
       if (hasAncestor(targetTask.id, draggedTask.id)) return;
       
-      // Glisser-déposer pur et simple : réordonnancement au même niveau hiérarchique que la cible
-      draggedTask.parent_id = targetTask.parent_id;
+      const rect = e.currentTarget.getBoundingClientRect();
+      const offsetY = e.clientY - rect.top;
+      const height = rect.height;
 
-      let siblings = todos.filter(t => String(t.parent_id) === String(targetTask.parent_id));
-      siblings.sort((a, b) => (a.manual_order || 0) - (b.manual_order || 0));
-      
-      const draggedIndex = siblings.findIndex(t => String(t.id) === String(draggedTaskId));
-      if (draggedIndex > -1) siblings.splice(draggedIndex, 1);
-      
-      const insertIndex = siblings.findIndex(t => String(t.id) === String(targetId));
-      if (insertIndex > -1) {
-        siblings.splice(insertIndex, 0, draggedTask);
+      // Drop au centre = devient sous-tâche fille
+      if (offsetY > height * 0.2 && offsetY < height * 0.8) {
+        draggedTask.parent_id = targetTask.id;
+        targetTask.collapsed = false;
+
+        const siblings = todos.filter(t => String(t.parent_id) === String(targetTask.id));
+        const newOrder = siblings.length > 0 ? Math.max(...siblings.map(t => t.manual_order || 0)) + 10 : 0;
+        draggedTask.manual_order = newOrder;
       } else {
-        siblings.push(draggedTask);
+        // Drop sur le trait = niveau du destinataire
+        draggedTask.parent_id = targetTask.parent_id;
+
+        let siblings = todos.filter(t => String(t.parent_id) === String(targetTask.parent_id));
+        siblings.sort((a, b) => (a.manual_order || 0) - (b.manual_order || 0));
+        
+        const draggedIndex = siblings.findIndex(t => String(t.id) === String(draggedTaskId));
+        if (draggedIndex > -1) siblings.splice(draggedIndex, 1);
+        
+        const insertIndex = siblings.findIndex(t => String(t.id) === String(targetId));
+        if (insertIndex > -1) {
+          if (offsetY >= height * 0.8) {
+            siblings.splice(insertIndex + 1, 0, draggedTask);
+          } else {
+            siblings.splice(insertIndex, 0, draggedTask);
+          }
+        } else {
+          siblings.push(draggedTask);
+        }
+        
+        siblings.forEach((sib, idx) => {
+          sib.manual_order = idx * 10;
+        });
       }
-      
-      siblings.forEach((sib, idx) => {
-        sib.manual_order = idx * 10;
-      });
       
       saveLocal();
       await pushTaskToCloud(draggedTask);
-      for (let s of siblings) { await pushTaskToCloud(s); }
+      await pushTaskToCloud(targetTask);
+      await syncCloud();
+      draggedTaskId = null;
+    }
+
+    async function handleContainerDrop(e) {
+      e.preventDefault();
+      if (!draggedTaskId) return;
+
+      if (e.target.closest('.task-item-wrapper')) return;
+
+      const draggedTask = todos.find(t => String(t.id) === String(draggedTaskId));
+      if (!draggedTask) return;
+
+      // Extrait la tâche de sa tâche mère et la transforme en tâche principale autonome
+      draggedTask.parent_id = null;
+      const rootTasks = todos.filter(t => t.parent_id === null);
+      const newOrder = rootTasks.length > 0 ? Math.max(...rootTasks.map(t => t.manual_order || 0)) + 10 : 0;
+      draggedTask.manual_order = newOrder;
+
+      saveLocal();
+      await pushTaskToCloud(draggedTask);
       await syncCloud();
       draggedTaskId = null;
     }
@@ -1721,20 +1769,21 @@
           `;
         }
 
-        // Plafond d'indentation max à 3 pour éviter tout débordement à droite hors écran
-        const effectiveLevel = Math.min(level, 3);
-
         return `
-          <div class="task-item-wrapper flex items-start w-full transition-all rounded-2xl ${effectiveLevel > 0 ? 'ml-1.5 sm:ml-2 mt-1 pl-1 border-l-2 border-slate-200/70' : ''}"
-               ondragover="handleDragOver(event)" ondrop="handleDrop(event, ${todo.id})" ondragenter="handleDragEnter(event)" ondragleave="handleDragLeave(event)">
+          <div class="task-item-wrapper flex items-start gap-1 transition-all rounded-2xl ${level > 0 ? 'ml-3 mt-1 pl-1 border-l-2 border-slate-200/70' : ''}"
+               ondragover="handleDragOver(event)" ondrop="handleDrop(event, ${todo.id})" ondragenter="handleDragEnter(event)" ondragueleave="handleDragLeave(event)">
+            
+            <div draggable="true" ondragstart="handleDragStart(event, ${todo.id})" class="cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-500 mt-[10px] px-1 drag-handle shrink-0" title="Déplacer (Drag & Drop)">
+              <svg class="w-5 h-5 fill-current" viewBox="0 0 20 20"><path d="M7 2a2 2 0 10-4 0 2 2 0 004 0zm0 8a2 2 0 10-4 0 2 2 0 004 0zm0 8a2 2 0 10-4 0 2 2 0 004 0zm8-16a2 2 0 10-4 0 2 2 0 004 0zm0 8a2 2 0 10-4 0 2 2 0 004 0zm0 8a2 2 0 10-4 0 2 2 0 004 0z"/></svg>
+            </div>
 
             <div class="flex-1 w-full min-w-0">
               <div id="task-card-${todo.id}"
-                onpointerdown="handleCardPointerDown(event, ${todo.id})"
-                onpointerup="handleCardPointerUp(event, ${todo.id})"
-                onpointerleave="handleCardPointerLeave(event, ${todo.id})"
+                draggable="true"
                 ondragstart="handleDragStart(event, ${todo.id})"
-                ondragend="handleDragEnd(event, ${todo.id})"
+                ontouchstart="handleCardTouchStart(event, ${todo.id})"
+                ontouchmove="handleCardTouchMove(event)"
+                ontouchend="handleCardTouchEnd(event)"
                 onclick="handleCardClick(event, ${todo.id})"
                 class="task-card-bg flex items-start justify-between gap-2 p-2 rounded-2xl transition-all cursor-pointer ${borderStateClass} ${prioClass} ${
                   todo.completed ? 'bg-slate-50 opacity-60' : 
@@ -1786,8 +1835,16 @@
     function render() {
       const treeContainer = document.getElementById('task-tree');
       const countEl = document.getElementById('task-count');
+      
+      const viewportContainer = document.getElementById('viewport');
+      if (viewportContainer && !viewportContainer.getAttribute('data-drop-init')) {
+        viewportContainer.setAttribute('data-drop-init', 'true');
+        viewportContainer.addEventListener('dragover', handleDragOver);
+        viewportContainer.addEventListener('drop', handleContainerDrop);
+      }
+
       const html = renderTaskTree(null, 0);
-      if (!html) treeContainer.innerHTML = `<p class="text-center text-slate-400 text-sm py-8">Aucune catégorie ou correspondance active.</p>`;
+      if (!html) treeContainer.innerHTML = `<p class="text-center text-slate-400 text-sm py-8">Aucune tâche dans cette catégorie ou correspondant à la recherche.</p>`;
       else treeContainer.innerHTML = html;
       const activeCount = todos.filter(t => !t.completed).length;
       countEl.textContent = `${activeCount} tâche${activeCount > 1 ? 's' : ''} restante${activeCount > 1 ? 's' : ''}`;
